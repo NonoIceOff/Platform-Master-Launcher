@@ -1,6 +1,6 @@
 {
   "name": "my-launcher",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
@@ -26,7 +26,8 @@
     "publish": {
       "provider": "github",
       "owner": "NonoIceOff",
-      "repo": "Platform-Master-Launcher"
+      "repo": "Platform-Master-Launcher",
+      "releaseType": "release"
     }
   },
   "dependencies": {
@@ -40,7 +41,7 @@
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@types/node": "^22.19.1",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^39.2.6",

@@ -16,8 +16,31 @@ let mainWindow: BrowserWindow | null = null
    📦 AUTO UPDATER CONFIG
 ──────────────────────────────── */
 autoUpdater.logger = log
-autoUpdater.logger.transports.file.level = 'info'
+;(autoUpdater.logger as any).transports.file.level = 'info'
 autoUpdater.autoDownload = true
+
+autoUpdater.on('update-available', () => {
+  console.log('Update disponible')
+})
+
+autoUpdater.on('update-not-available', () => {
+  console.log('Pas de mise à jour')
+})
+
+autoUpdater.on('error', (err) => {
+  console.log('Erreur update:', err)
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  console.log('Progress:', progress.percent)
+})
+
+autoUpdater.on('update-downloaded', () => {
+  console.log('Update téléchargée')
+
+  // 🔥 IMPORTANT
+  autoUpdater.quitAndInstall()
+})
 
 /* ────────────────────────────────
    📁 PATHS
@@ -51,7 +74,6 @@ function createWindow(): void {
     frame: false,
     transparent: true,
     vibrancy: 'under-window',
-    visuallyOpaque: false,
     backgroundMaterial: 'acrylic',
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 18 },
@@ -77,7 +99,9 @@ app.whenReady().then(() => {
   createWindow()
 
   // 🔥 AUTO UPDATE CHECK
-  autoUpdater.checkForUpdates()
+  setTimeout(() => {
+    autoUpdater.checkForUpdates()
+  }, 2000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -122,10 +146,20 @@ ipcMain.handle('get-playtime', () => {
    🌐 FETCH VERSIONS
 ──────────────────────────────── */
 ipcMain.handle('fetch-versions', async () => {
-  const API_URL = 'http://localhost:3000/api/versions'
+  const API_URL = 'https://pm-jfho8s5yp-contagion-creatures-projects.vercel.app/api/versions'
 
-  const res = await fetch(API_URL)
-  if (!res.ok) throw new Error(`API Error: ${res.status}`)
+  const res = await fetch(API_URL, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 Platform-Master-Launcher'
+    }
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`API Error: ${res.status} - ${text}`)
+  }
 
   return await res.json()
 })

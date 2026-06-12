@@ -1,5 +1,3 @@
-import React from 'react'
-
 const wikiTiles = [
   '🌍 Terre',
   '💧 Eau',
@@ -13,7 +11,7 @@ const wikiTiles = [
   '⛏️ Minerai'
 ]
 
-export default function Wiki(): JSX.Element {
+export default function Wiki() {
   return (
     <div className="tab-view animate-fade-in">
       <div className="view-header">
