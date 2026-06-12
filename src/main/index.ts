@@ -85,10 +85,10 @@ function createWindow(): void {
     },
   })
 
-  if (isDev && process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
+  if (app.isPackaged) {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  } else {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL!)
   }
 }
 
