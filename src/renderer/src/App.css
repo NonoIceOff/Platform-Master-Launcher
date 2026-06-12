@@ -1,0 +1,613 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-deep: #0a0a0c;
+  --bg-panel: #111115;
+  --bg-card: #16161c;
+  --bg-card-hover: #1d1d26;
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-focus: rgba(255, 255, 255, 0.15);
+
+  --color-text-main: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-dim: #4b5563;
+
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-green: #10b981;
+  --accent-green-hover: #059669;
+  --accent-gold: #f59e0b;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  color: var(--color-text-main);
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Container de l'App fixe (1024x680) */
+.app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Barre de titre */
+.titlebar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: #070709;
+  border-bottom: 1px solid var(--border-light);
+  -webkit-app-region: drag;
+  z-index: 100;
+}
+.titlebar-controls {
+  display: flex;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+.titlebar-btn {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+}
+.titlebar-btn.close { background: #ef4444; }
+.titlebar-btn.minimize { background: #f59e0b; }
+.titlebar-drag {
+  flex: 1;
+  text-align: center;
+}
+.titlebar-drag-title {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* Layout principal */
+.main-container {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 44px);
+  overflow: hidden;
+}
+
+/* Sidebar Gauche Épurée */
+.sidebar {
+  width: 220px;
+  background: #0b0b0d;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-brand {
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.brand-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: #fff;
+}
+.brand-text h4 { font-size: 13px; font-weight: 700; }
+.brand-text p { font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.status-online { color: var(--accent-green); font-weight: 500; }
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px var(--accent-green);
+}
+
+.sidebar-menu {
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-main);
+}
+.nav-btn.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent-blue);
+}
+.nav-icon { font-size: 14px; }
+
+/* Wrapper de contenu à droite */
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  height: 100%;
+  overflow: hidden;
+}
+
+.scrollable-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+/* Masquer les barres de défilement dégoûtantes mais garder le scroll */
+.scrollable-content::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+/* Design Global de l'en-tête de vue */
+.tab-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.view-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.view-subtitle {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+.global-badge {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: var(--accent-green);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+/* 🔥 DESIGN PREMIUM DE L'ONGLET ACTUALITÉS 🔥 */
+.news-feed-premium {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.news-card-premium {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.news-card-premium:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+}
+
+.news-card-premium.active {
+  background: #171722;
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Lueur asymétrique en fond de carte */
+.news-card-glow {
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, rgba(0,0,0,0) 70%);
+  pointer-events: none;
+}
+.news-card-glow.first-glow {
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.08) 0%, rgba(0,0,0,0) 70%);
+}
+
+.news-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.news-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.news-badge-type {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.badge-major {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-gold);
+}
+.badge-patch {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-muted);
+}
+
+.news-card-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.news-card-label {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  font-style: italic;
+}
+
+.news-arrow {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  transition: transform 0.2s ease, color 0.2s;
+}
+.news-card-premium:hover .news-arrow {
+  color: var(--color-text-main);
+}
+.news-arrow.rotated {
+  transform: rotate(90deg);
+  color: var(--accent-blue);
+}
+
+.news-card-summary {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* Box déroulante du changelog */
+.news-card-expanded-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.news-card-expanded-content.show {
+  grid-template-rows: 1fr;
+}
+
+.changelog-box-premium {
+  overflow: hidden;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.changelog-box-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.changelog-bullet-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changelog-bullet-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.bullet-decor {
+  color: var(--accent-blue);
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.bullet-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.4;
+}
+
+.no-changelog {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  font-style: italic;
+}
+
+/* 🎮 DESIGN DE L'ONGLET PLATFORM MASTER 🎮 */
+.profile-selection-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 24px;
+}
+.input-group-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  display: block;
+  margin-bottom: 10px;
+}
+.custom-select-wrapper {
+  display: flex;
+  gap: 10px;
+}
+.premium-select {
+  flex: 1;
+  background: #0f0f13;
+  border: 1px solid var(--border-light);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.premium-select:focus {
+  border-color: var(--accent-blue);
+}
+.premium-refresh-btn {
+  width: 44px;
+  height: 44px;
+  background: #0f0f13;
+  border: 1px solid var(--border-light);
+  color: var(--color-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.premium-refresh-btn:hover {
+  color: #fff;
+  border-color: var(--border-focus);
+}
+.premium-refresh-btn.spinning {
+  animation: spin 0.6s linear infinite;
+}
+
+/* ⚙️ DESIGN DE L'ONGLET CONFIG VIDE ⚙️ */
+.empty-state-card {
+  border: 1px dashed var(--border-light);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+.empty-state-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-bottom: 4px;
+}
+.empty-state-card p {
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+.global-error-toast {
+  margin-top: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  font-size: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* ──────────────────────────────────
+   BARRE BASSE UNIFIÉE (MODERNE COHÉRENTE)
+────────────────────────────────── */
+.persistent-action-bar {
+  background: #0b0b0d;
+  border-top: 1px solid var(--border-light);
+  padding: 20px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-bar-layout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.selected-version-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.version-indicator-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-blue);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-blue);
+}
+.version-main-title {
+  font-size: 14px;
+  font-weight: 700;
+  display: block;
+}
+.version-sub-title {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  display: block;
+}
+
+/* Boutons d'actions */
+.action-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  padding: 12px 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.action-btn:active { transform: scale(0.98); }
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-launch { background: var(--accent-green); }
+.btn-launch:hover:not(:disabled) { background: var(--accent-green-hover); }
+
+.btn-install { background: var(--accent-blue); }
+.btn-install:hover:not(:disabled) { background: var(--accent-blue-hover); }
+
+/* Progress Bar fine Premium */
+.premium-progress-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.premium-progress-bar-container {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.premium-progress-bar-fill {
+  height: 100%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 8px var(--accent-blue);
+  transition: width 0.1s ease;
+}
+.premium-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.pct-text { font-weight: 700; color: #fff; }
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Petit contour bleu subtil autour de la news sélectionnée pour le lancement */
+.news-card-premium.selected-border {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.1);
+}
+
+/* Badge vert à côté du titre si la version est déjà stockée localement */
+.downloaded-tag {
+  font-size: 10px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.wiki-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.wiki-tile {
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+
+  font-size: 14px;
+  cursor: pointer;
+
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.wiki-tile:hover {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
