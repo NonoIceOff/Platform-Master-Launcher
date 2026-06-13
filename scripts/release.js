@@ -9,10 +9,21 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 const bump = process.argv[2]
 const VALID = ['patch', 'minor', 'major']
 
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-
 function run(cmd, args, opts = {}) {
-  const result = spawnSync(cmd, args, { stdio: 'inherit', windowsHide: true, ...opts })
+  const result =
+    process.platform === 'win32' && (cmd === 'npm' || cmd === 'npm.cmd')
+      ? spawnSync('cmd.exe', ['/c', 'npm', ...args], {
+          stdio: 'inherit',
+          windowsHide: true,
+          ...opts
+        })
+      : spawnSync(cmd, args, { stdio: 'inherit', windowsHide: true, ...opts })
+
+  if (result.error) {
+    console.error(`\n❌ Commande échouée: ${cmd} ${args.join(' ')}`)
+    console.error(result.error.message)
+    process.exit(1)
+  }
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
@@ -50,14 +61,14 @@ if (isGitDirty()) {
 }
 
 console.log(`\n🔢 Incrément ${bump}...`)
-run(npmCmd, ['version', bump, '-m', 'Release v%s'])
+run('npm', ['version', bump, '-m', 'Release v%s'])
 
 const pkg = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'))
 const version = pkg.version
 const branch = gitOutput(['rev-parse', '--abbrev-ref', 'HEAD'])
 
 console.log(`\n🏗️  Build + publication GitHub v${version}...`)
-run(npmCmd, ['run', 'build:win', '--', '--publish', 'always'], {
+run('npm', ['run', 'build:win', '--', '--publish', 'always'], {
   env: { ...process.env, GH_TOKEN: process.env.GH_TOKEN }
 })
 
