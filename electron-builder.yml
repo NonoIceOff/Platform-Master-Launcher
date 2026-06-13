@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: my-launcher
+appId: fr.nonoice.platformmaster
+productName: Platform Master Launcher
 directories:
   buildResources: build
 files:
@@ -39,5 +39,7 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: NonoIceOff
+  repo: Platform-Master-Launcher
+  releaseType: release

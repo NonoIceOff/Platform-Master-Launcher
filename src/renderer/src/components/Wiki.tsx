@@ -1,3 +1,5 @@
+import { type ReactElement } from 'react'
+
 const wikiTiles = [
   '🌍 Terre',
   '💧 Eau',
@@ -11,15 +13,13 @@ const wikiTiles = [
   '⛏️ Minerai'
 ]
 
-export default function Wiki() {
+export default function Wiki(): ReactElement {
   return (
     <div className="tab-view animate-fade-in">
       <div className="view-header">
         <div>
           <h2 className="view-title">Wiki Platform Master</h2>
-          <p className="view-subtitle">
-            Explore les éléments du monde.
-          </p>
+          <p className="view-subtitle">Explore les éléments du monde.</p>
         </div>
       </div>
 

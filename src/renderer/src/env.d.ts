@@ -4,8 +4,11 @@ declare global {
   interface Window {
     launcher: {
       getInstalledVersion: () => Promise<string | null>
-      fetchVersions: (url: string) => Promise<any>
-      downloadVersion: (version: string, url: string | string[]) => Promise<any>
+      fetchVersions: (url: string) => Promise<unknown>
+      downloadVersion: (
+        version: string,
+        url: string | string[]
+      ) => Promise<{ version: string; exe: string }>
       launchGame: () => Promise<{ ok?: boolean; error?: string }>
       getPlaytime: () => Promise<number>
 

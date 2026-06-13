@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import fs from 'node:fs'
-import https from 'node:https'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { ReadableStream } from 'node:stream/web'
 import { exec } from 'node:child_process'
 import 'dotenv/config'
 import { autoUpdater } from 'electron-updater'
@@ -15,32 +17,9 @@ let mainWindow: BrowserWindow | null = null
 /* ────────────────────────────────
    📦 AUTO UPDATER CONFIG
 ──────────────────────────────── */
+log.transports.file.level = 'info'
 autoUpdater.logger = log
-;(autoUpdater.logger as any).transports.file.level = 'info'
 autoUpdater.autoDownload = true
-
-autoUpdater.on('update-available', () => {
-  console.log('Update disponible')
-})
-
-autoUpdater.on('update-not-available', () => {
-  console.log('Pas de mise à jour')
-})
-
-autoUpdater.on('error', (err) => {
-  console.log('Erreur update:', err)
-})
-
-autoUpdater.on('download-progress', (progress) => {
-  console.log('Progress:', progress.percent)
-})
-
-autoUpdater.on('update-downloaded', () => {
-  console.log('Update téléchargée')
-
-  // 🔥 IMPORTANT
-  autoUpdater.quitAndInstall()
-})
 
 /* ────────────────────────────────
    📁 PATHS
@@ -65,8 +44,6 @@ function getPlaytime(): number {
    🪟 WINDOW
 ──────────────────────────────── */
 function createWindow(): void {
-  const isDev = !app.isPackaged
-
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 680,
@@ -81,8 +58,8 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
-    },
+      sandbox: false
+    }
   })
 
   if (app.isPackaged) {
@@ -143,16 +120,16 @@ ipcMain.handle('get-playtime', () => {
 })
 
 /* ────────────────────────────────
-   🌐 FETCH VERSIONS
+   🌐 API
 ──────────────────────────────── */
-ipcMain.handle('fetch-versions', async () => {
-  const API_URL = 'https://pm-jfho8s5yp-contagion-creatures-projects.vercel.app/api/versions'
+const API_BASE = 'https://pm-api-ten.vercel.app'
 
-  const res = await fetch(API_URL, {
+ipcMain.handle('fetch-versions', async () => {
+  const res = await fetch(`${API_BASE}/api/versions`, {
     method: 'GET',
     headers: {
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 Platform-Master-Launcher'
+      Accept: 'application/json',
+      'User-Agent': 'Platform-Master-Launcher'
     }
   })
 
@@ -175,7 +152,9 @@ ipcMain.handle('get-installed-version', () => {
   try {
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'))
     if (fs.existsSync(meta.exe)) return meta.version
-  } catch {}
+  } catch {
+    // Fichier meta corrompu ou illisible
+  }
 
   return null
 })
@@ -206,110 +185,119 @@ ipcMain.handle('delete-game', () => {
   return { success: false, error: "Le jeu n'est pas installé." }
 })
 
+function getFilenameFromUrl(fileUrl: string): string {
+  return decodeURIComponent(fileUrl.split('?')[0].split('/').pop() || '')
+}
+
+function getApiDownloadUrl(version: string, fileUrl: string): string {
+  const filename = getFilenameFromUrl(fileUrl)
+  return `${API_BASE}/api/download/${encodeURIComponent(version)}/${encodeURIComponent(filename)}`
+}
+
+async function downloadFileToDisk(
+  downloadUrl: string,
+  dest: string,
+  onProgress: (received: number, total: number) => void
+): Promise<void> {
+  const response = await fetch(downloadUrl, {
+    headers: {
+      'User-Agent': 'Platform-Master-Launcher',
+      Accept: '*/*'
+    },
+    redirect: 'follow'
+  })
+
+  const filename = getFilenameFromUrl(downloadUrl) || dest
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status} sur ${filename}`
+    try {
+      const body = (await response.json()) as { error?: string }
+      if (body.error) message = body.error
+    } catch {
+      // réponse non-JSON
+    }
+    throw new Error(message)
+  }
+
+  if (!response.body) {
+    throw new Error(`Réponse vide pour ${filename}`)
+  }
+
+  const total = parseInt(response.headers.get('content-length') || '0', 10)
+  let received = 0
+
+  const progress = new Transform({
+    transform(chunk, _encoding, callback): void {
+      received += chunk.length
+      onProgress(received, total)
+      callback(null, chunk)
+    }
+  })
+
+  const body = Readable.fromWeb(response.body as ReadableStream<Uint8Array>)
+  const file = fs.createWriteStream(dest)
+
+  try {
+    await pipeline(body, progress, file)
+  } catch (err) {
+    file.close()
+    if (fs.existsSync(dest)) fs.unlinkSync(dest)
+    throw err
+  }
+}
+
 /* ────────────────────────────────
    📥 DOWNLOAD VERSION
 ──────────────────────────────── */
 ipcMain.handle(
   'download-version',
   async (event, { version, url }: { version: string; url: string | string[] }) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const safeVersion = String(version).replace(/\./g, '_')
-        const versionDir = join(INSTALL_DIR, safeVersion)
+    const safeVersion = String(version).replace(/\./g, '_')
+    const versionDir = join(INSTALL_DIR, safeVersion)
 
-        if (!fs.existsSync(versionDir)) {
-          fs.mkdirSync(versionDir, { recursive: true })
-        }
+    if (!fs.existsSync(versionDir)) {
+      fs.mkdirSync(versionDir, { recursive: true })
+    }
 
-        const urlList = Array.isArray(url) ? url : [url]
-        let exePath = ''
+    const urlList = Array.isArray(url) ? url : [url]
+    let exePath = ''
 
-        for (let i = 0; i < urlList.length; i++) {
-          const downloadUrl = urlList[i]
+    for (let i = 0; i < urlList.length; i++) {
+      const fileUrl = urlList[i]
+      const filename = getFilenameFromUrl(fileUrl)
+      const dest = join(versionDir, filename)
+      const downloadUrl = getApiDownloadUrl(version, fileUrl)
 
-          const urlWithoutParams = downloadUrl.split('?')[0]
-          const filename = decodeURIComponent(urlWithoutParams.split('/').pop() || `file_${i}`)
-          const dest = join(versionDir, filename)
+      if (filename.toLowerCase().endsWith('.exe')) {
+        exePath = dest
+      }
 
-          if (filename.toLowerCase().endsWith('.exe')) {
-            exePath = dest
-          }
+      await downloadFileToDisk(downloadUrl, dest, (received, total) => {
+        if (total > 0) {
+          const currentFilePct = (received / total) * 100
+          const globalPct = Math.round((i * 100 + currentFilePct) / urlList.length)
 
-          await new Promise<void>((fileResolve, fileReject) => {
-            const file = fs.createWriteStream(dest)
-
-            const startDownload = (currentUrl: string): void => {
-              const options: https.RequestOptions = {
-                headers: { 'User-Agent': 'Platform-Master-Launcher' }
-              }
-
-              https.get(currentUrl, options, (res) => {
-                if (res.statusCode === 302 || res.statusCode === 301) {
-                  if (res.headers.location) return startDownload(res.headers.location)
-                }
-
-                if (res.statusCode !== 200) {
-                  file.close()
-                  if (fs.existsSync(dest)) fs.unlinkSync(dest)
-                  return fileReject(new Error(`HTTP ${res.statusCode} sur ${filename}`))
-                }
-
-                const total = parseInt(res.headers['content-length'] || '0', 10)
-                let received = 0
-
-                res.on('data', (chunk) => {
-                  received += chunk.length
-                  file.write(chunk)
-
-                  if (total > 0) {
-                    const currentFilePct = (received / total) * 100
-                    const globalPct = Math.round(((i * 100) + currentFilePct) / urlList.length)
-
-                    event.sender.send('download-progress', {
-                      version,
-                      pct: globalPct,
-                      received,
-                      total,
-                    })
-                  }
-                })
-
-                res.on('end', () => {
-                  file.end()
-                  fileResolve()
-                })
-
-                res.on('error', (err) => {
-                  file.close()
-                  if (fs.existsSync(dest)) fs.unlinkSync(dest)
-                  fileReject(err)
-                })
-              }).on('error', (err) => {
-                file.close()
-                if (fs.existsSync(dest)) fs.unlinkSync(dest)
-                fileReject(err)
-              })
-            }
-
-            startDownload(downloadUrl)
+          event.sender.send('download-progress', {
+            version,
+            pct: globalPct,
+            received,
+            total
           })
         }
+      })
+    }
 
-        if (!exePath && urlList.length > 0) {
-          const firstUrl = urlList[0].split('?')[0]
-          exePath = join(versionDir, decodeURIComponent(firstUrl.split('/').pop() || ''))
-        }
+    if (!exePath && urlList.length > 0) {
+      exePath = join(versionDir, getFilenameFromUrl(urlList[0]))
+    }
 
-        fs.writeFileSync(
-          join(INSTALL_DIR, 'installed.json'),
-          JSON.stringify({ version, exe: exePath }, null, 2)
-        )
+    fs.writeFileSync(
+      join(INSTALL_DIR, 'installed.json'),
+      JSON.stringify({ version, exe: exePath }, null, 2)
+    )
 
-        resolve({ version, exe: exePath })
-      } catch (err) {
-        reject(err)
-      }
-    })
+    return { version, exe: exePath }
   }
 )
 
@@ -338,10 +326,7 @@ ipcMain.handle('launch-game', async () => {
 
     const total = getPlaytime() + sessionSeconds
 
-    fs.writeFileSync(
-      PLAYTIME_FILE,
-      JSON.stringify({ seconds: total })
-    )
+    fs.writeFileSync(PLAYTIME_FILE, JSON.stringify({ seconds: total }))
   })
 
   return { ok: true }
@@ -350,9 +335,7 @@ ipcMain.handle('launch-game', async () => {
 /* ────────────────────────────────
    🌐 OPEN EXTERNAL
 ──────────────────────────────── */
-ipcMain.handle('open-external', (_e, url: string) =>
-  shell.openExternal(url)
-)
+ipcMain.handle('open-external', (_e, url: string) => shell.openExternal(url))
 
 /* ────────────────────────────────
    🪟 WINDOW CONTROLS

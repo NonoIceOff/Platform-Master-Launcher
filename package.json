@@ -7,7 +7,7 @@
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write my-launcher",
-    "lint": "eslint --cache my-launcher",
+    "lint": "eslint --cache src",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -18,7 +18,11 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
   },
   "build": {
     "appId": "fr.nonoice.platformmaster",
@@ -33,6 +37,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "dotenv": "^17.4.2",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9"
   },
