@@ -1,13 +1,16 @@
 'use strict'
 
 const { spawnSync } = require('node:child_process')
-const { readFileSync } = require('node:fs')
+const { readFileSync, rmSync, existsSync } = require('node:fs')
 const path = require('node:path')
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
-const bump = process.argv[2]
+const args = process.argv.slice(2)
+const publishOnly = args.includes('--publish-only')
+const bump = args.find((arg) => ['patch', 'minor', 'major'].includes(arg))
 const VALID = ['patch', 'minor', 'major']
+const rootDir = path.join(__dirname, '..')
 
 function run(cmd, args, opts = {}) {
   const result =
@@ -38,12 +41,29 @@ function isGitDirty() {
   return result.stdout.trim().length > 0
 }
 
-if (!VALID.includes(bump)) {
-  console.error(`\nUsage: npm run release -- ${VALID.join('|')}\n`)
+function cleanDist() {
+  const distPath = path.join(rootDir, 'dist')
+  if (!existsSync(distPath)) return
+
+  console.log('🧹 Nettoyage du dossier dist/...')
+  try {
+    rmSync(distPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 800 })
+  } catch {
+    console.error('\n❌ Impossible de supprimer dist/ — un fichier est verrouillé.')
+    console.error('→ Ferme le launcher (Platform Master Launcher / my-launcher)')
+    console.error('→ Arrête "npm run dev" si actif')
+    console.error('→ Puis relance: npm run publish\n')
+    process.exit(1)
+  }
+}
+
+if (!publishOnly && !VALID.includes(bump)) {
+  console.error(`\nUsage:`)
+  console.error(`  npm run release -- patch|minor|major`)
+  console.error(`  npm run publish\n`)
   console.error('Exemples:')
   console.error('  npm run release -- patch   → 1.0.4 → 1.0.5')
-  console.error('  npm run release -- minor   → 1.0.4 → 1.1.0')
-  console.error('  npm run release -- major   → 1.0.4 → 2.0.0\n')
+  console.error('  npm run publish            → build + GitHub (sans changer la version)\n')
   process.exit(1)
 }
 
@@ -54,16 +74,22 @@ if (!process.env.GH_TOKEN) {
   process.exit(1)
 }
 
-if (isGitDirty()) {
-  console.log('📦 Commit des changements en cours...')
-  run('git', ['add', '-A'])
-  run('git', ['commit', '-m', 'chore: prepare release'])
+if (!publishOnly) {
+  if (isGitDirty()) {
+    console.log('📦 Commit des changements en cours...')
+    run('git', ['add', '-A'])
+    run('git', ['commit', '-m', 'chore: prepare release'])
+  }
+
+  console.log(`\n🔢 Incrément ${bump}...`)
+  run('npm', ['version', bump, '-m', 'Release v%s'])
+} else {
+  console.log('\n📦 Mode publish-only (version inchangée)')
 }
 
-console.log(`\n🔢 Incrément ${bump}...`)
-run('npm', ['version', bump, '-m', 'Release v%s'])
+cleanDist()
 
-const pkg = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'))
+const pkg = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8'))
 const version = pkg.version
 const branch = gitOutput(['rev-parse', '--abbrev-ref', 'HEAD'])
 
