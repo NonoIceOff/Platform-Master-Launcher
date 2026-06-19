@@ -23,20 +23,42 @@
   --accent-green: #10b981;
   --accent-green-hover: #059669;
   --accent-gold: #f59e0b;
+
+  --titlebar-height: 52px;
+  --subnav-height: 48px;
+  --nav-tab-radius: 10px;
+  --nav-tab-gap: 6px;
+  --nav-tab-font-main: 15px;
+  --nav-tab-font-sub: 14px;
+  --accent-pm-bg: rgba(59, 130, 246, 0.16);
+  --accent-pm-text: #93c5fd;
+  --accent-pc-bg: rgba(168, 85, 247, 0.16);
+  --accent-pc-text: #c4b5fd;
+  --content-padding: clamp(20px, 2.5vw, 36px);
+  --action-bar-padding: clamp(14px, 2vw, 24px);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
   color: var(--color-text-main);
   background: #000;
-  overflow: hidden;
   user-select: none;
 }
 
-/* Container de l'App fixe (1024x680) */
+/* Shell responsive — remplit la fenêtre (min. 1080×720 côté Electron) */
 .app {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-deep);
@@ -45,10 +67,11 @@ body {
 
 /* Barre de titre */
 .titlebar {
-  height: 44px;
+  height: var(--titlebar-height);
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 clamp(12px, 2vw, 20px);
   background: #070709;
   border-bottom: 1px solid var(--border-light);
   -webkit-app-region: drag;
@@ -71,6 +94,10 @@ body {
 .titlebar-drag {
   flex: 1;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
 }
 .titlebar-drag-title {
   font-size: 11px;
@@ -80,86 +107,250 @@ body {
   text-transform: uppercase;
 }
 
-/* Layout principal */
-.main-container {
-  display: flex;
-  flex: 1;
-  height: calc(100vh - 44px);
-  overflow: hidden;
-}
-
-/* Sidebar Gauche Épurée */
-.sidebar {
-  width: 220px;
-  background: #0b0b0d;
-  border-right: 1px solid var(--border-light);
-  display: flex;
-  flex-direction: column;
-}
-.sidebar-brand {
-  padding: 24px 20px;
+/* Navigation principale (header) */
+.app-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  gap: var(--nav-tab-gap);
+  margin-left: 18px;
+  -webkit-app-region: no-drag;
 }
-.brand-avatar {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+.app-nav-tab {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--nav-tab-font-main);
+  font-weight: 600;
+  font-family: inherit;
+  padding: 10px 22px;
+  border-radius: var(--nav-tab-radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.app-nav-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-main);
+}
+.app-nav-tab-pm.active {
+  background: var(--accent-pm-bg);
+  color: var(--accent-pm-text);
+}
+.app-nav-tab-pc.active {
+  background: var(--accent-pc-bg);
+  color: var(--accent-pc-text);
+}
+
+.app-account-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--nav-tab-radius);
+  color: var(--color-text-main);
+  font-size: var(--nav-tab-font-sub);
+  font-weight: 600;
+  font-family: inherit;
+  padding: 6px 14px 6px 6px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.app-account-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-focus);
+}
+.app-account-btn.active {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
+}
+.app-account-avatar {
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 11px;
   color: #fff;
+  flex-shrink: 0;
 }
-.brand-text h4 { font-size: 13px; font-weight: 700; }
-.brand-text p { font-size: 11px; display: flex; align-items: center; gap: 5px; }
-.status-online { color: var(--accent-green); font-weight: 500; }
-.pulse-dot {
+.app-account-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-account-dot {
   width: 6px;
   height: 6px;
-  background: var(--accent-green);
   border-radius: 50%;
-  display: inline-block;
-  box-shadow: 0 0 8px var(--accent-green);
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  flex-shrink: 0;
 }
 
-.sidebar-menu {
-  padding: 16px 10px;
+/* Sous-navigation partagée (PM + Party-cipate) */
+.app-subnav {
+  height: var(--subnav-height);
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: var(--nav-tab-gap);
+  padding: 0 clamp(16px, 2vw, 24px);
+  background: #0b0b0d;
+  border-bottom: 1px solid var(--border-light);
 }
-.nav-btn {
+.app-subnav-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--nav-tab-gap);
+  flex: 1;
+  min-width: 0;
+}
+.app-subnav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: transparent;
   border: none;
   color: var(--color-text-muted);
-  padding: 10px 14px;
-  text-align: left;
-  font-size: 13px;
+  font-size: var(--nav-tab-font-sub);
   font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: all 0.2s ease;
   font-family: inherit;
+  padding: 10px 18px;
+  border-radius: var(--nav-tab-radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  line-height: 1.2;
 }
-.nav-btn:hover {
-  background: rgba(255, 255, 255, 0.03);
+.app-subnav-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-text-main);
 }
-.nav-btn.active {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+.app-subnav-tab.active {
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--accent-blue);
 }
-.nav-icon { font-size: 14px; }
+.app-subnav--pm .app-subnav-tab.active {
+  background: var(--accent-pm-bg);
+  color: var(--accent-pm-text);
+}
+.app-subnav--pc .app-subnav-tab.active {
+  background: var(--accent-pc-bg);
+  color: var(--accent-pc-text);
+}
+.app-subnav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Layout principal */
+.main-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+/* Account / Auth */
+.account-card,
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 28px;
+  width: 100%;
+  max-width: min(480px, 100%);
+}
+.account-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.account-avatar-large {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-blue), #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+}
+.account-info h3 { font-size: 20px; font-weight: 700; }
+.account-email { color: var(--color-text-muted); font-size: 13px; margin-top: 4px; }
+.account-hint { color: var(--color-text-dim); font-size: 12px; margin-top: 12px; line-height: 1.5; }
+.btn-logout {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  margin-top: 8px;
+}
+.btn-logout:hover { background: rgba(239, 68, 68, 0.25); }
+.auth-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--accent-blue);
+}
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.auth-field { display: flex; flex-direction: column; gap: 6px; }
+.auth-field label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.auth-field input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-deep);
+  color: var(--color-text-main);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.auth-field input:focus { border-color: var(--accent-blue); }
+.auth-submit { margin-top: 8px; width: 100%; }
+
+.auth-expired-banner {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  font-size: 14px;
+  line-height: 1.45;
+}
 
 /* Wrapper de contenu à droite */
 .content-wrapper {
@@ -167,14 +358,23 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
-  height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
 .scrollable-content {
   flex: 1;
-  padding: 30px;
+  min-height: 0;
+  padding: var(--content-padding);
   overflow-y: auto;
+  overflow-x: hidden;
+}
+.scrollable-content-embedded {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 /* Masquer les barres de défilement dégoûtantes mais garder le scroll */
 .scrollable-content::-webkit-scrollbar {
@@ -195,6 +395,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 .view-title {
   font-size: 20px;
@@ -474,22 +676,27 @@ body {
 .persistent-action-bar {
   background: #0b0b0d;
   border-top: 1px solid var(--border-light);
-  padding: 20px 30px;
+  padding: var(--action-bar-padding) var(--content-padding);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .action-bar-layout {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .selected-version-details {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 .version-indicator-dot {
   width: 8px;
@@ -507,6 +714,10 @@ body {
   font-size: 11px;
   color: var(--color-text-dim);
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(520px, 100%);
 }
 
 /* Boutons d'actions */
@@ -584,30 +795,558 @@ body {
   font-weight: 600;
 }
 
-.wiki-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
+/* ─── Wiki (style encyclopédie) ─── */
+
+.scrollable-content:has(.wiki-root) {
+  padding: 0;
+  overflow: hidden;
 }
 
-.wiki-tile {
-  height: 110px;
+.scrollable-content:has(.pc-shell) {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-content:has(.pc-shell) .pc-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.wiki-root {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg-deep);
+}
+
+.wiki-sidebar {
+  width: clamp(180px, 14vw, 240px);
+  flex-shrink: 0;
+  background: #0d0d10;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wiki-sidebar-header {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  justify-content: center;
-
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-
-  font-size: 14px;
-  cursor: pointer;
-
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
-  transition: transform 0.1s ease, filter 0.1s ease;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--accent-gold);
+  letter-spacing: 0.3px;
 }
 
-.wiki-tile:hover {
-  transform: scale(1.05);
-  filter: brightness(1.2);
+.wiki-sidebar-logo { font-size: 16px; }
+
+.wiki-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.wiki-nav::-webkit-scrollbar { width: 4px; }
+.wiki-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+
+.wiki-nav-item,
+.wiki-nav-group-btn,
+.wiki-nav-child {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text-muted);
+  transition: background 0.12s, color 0.12s;
+}
+
+.wiki-nav-item {
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wiki-nav-group-btn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-nav-group-label { flex: 1; }
+.wiki-nav-chevron { font-size: 10px; opacity: 0.5; }
+.wiki-nav-icon { font-size: 13px; width: 18px; text-align: center; }
+
+.wiki-nav-child {
+  padding: 6px 14px 6px 36px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.wiki-nav-item:hover,
+.wiki-nav-group-btn:hover,
+.wiki-nav-child:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-main);
+}
+
+.wiki-nav-item.active,
+.wiki-nav-child.active {
+  background: rgba(59, 130, 246, 0.1);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--accent-blue);
+}
+
+.wiki-sidebar-footer {
+  padding: 10px 14px;
+  font-size: 10px;
+  color: var(--color-text-dim);
+  border-top: 1px solid var(--border-light);
+}
+
+.wiki-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wiki-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.wiki-search-wrap {
+  flex: 1;
+  position: relative;
+  max-width: 420px;
+}
+
+.wiki-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.wiki-search-input {
+  width: 100%;
+  padding: 8px 32px 8px 32px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--color-text-main);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.wiki-search-input:focus {
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.wiki-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+}
+
+.wiki-toolbar-meta {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-text-dim);
+  font-weight: 600;
+}
+
+.wiki-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 32px;
+}
+
+.wiki-content::-webkit-scrollbar { width: 6px; }
+.wiki-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 6px; }
+
+/* Article */
+.wiki-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 16px;
+  color: var(--color-text-dim);
+}
+
+.wiki-breadcrumb button {
+  background: none;
+  border: none;
+  color: var(--accent-blue);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 0;
+}
+
+.wiki-breadcrumb button:hover { text-decoration: underline; }
+.wiki-breadcrumb-sep { opacity: 0.4; }
+.wiki-breadcrumb-muted { color: var(--color-text-muted); }
+
+.wiki-article-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.wiki-article-body { flex: 1; min-width: 0; }
+
+.wiki-article-header { margin-bottom: 20px; }
+
+.wiki-article-title {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+  border-bottom: 2px solid rgba(245, 158, 11, 0.35);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.wiki-article-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--accent-gold);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.wiki-article-lead {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.wiki-toc {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  max-width: 280px;
+}
+
+.wiki-toc-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-dim);
+  margin-bottom: 8px;
+}
+
+.wiki-toc ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.wiki-toc li { margin: 4px 0; }
+.wiki-toc a { color: var(--accent-blue); text-decoration: none; }
+.wiki-toc a:hover { text-decoration: underline; }
+
+.wiki-section { margin-bottom: 24px; }
+
+.wiki-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.wiki-paragraph {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.wiki-list {
+  list-style: disc;
+  padding-left: 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+}
+
+.wiki-list li { margin-bottom: 4px; }
+
+.wiki-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+
+.wiki-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.wiki-table th {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-gold);
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.wiki-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--color-text-muted);
+}
+
+.wiki-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.wiki-table tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* Infobox (style Minecraft wiki) */
+.wiki-infobox {
+  width: 220px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(245, 158, 11, 0.25);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.wiki-infobox-icon {
+  text-align: center;
+  font-size: 48px;
+  padding: 16px 12px 8px;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.wiki-infobox-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.wiki-infobox-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wiki-infobox-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  width: 45%;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.wiki-infobox-table td {
+  padding: 6px 10px;
+  color: var(--color-text-main);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.wiki-see-also {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.wiki-see-also h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.wiki-see-also-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wiki-link {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: var(--accent-blue);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.wiki-link:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Search results */
+.wiki-search-results-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.wiki-search-empty {
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+.wiki-search-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wiki-search-hit {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s, background 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wiki-search-hit:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: var(--bg-card-hover);
+}
+
+.wiki-search-hit-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.wiki-search-hit-summary {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.wiki-not-found {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.wiki-not-found h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--color-text-main);
+}
+
+/* Grilles & cartes fluides */
+.profile-selection-card,
+.news-feed-premium,
+.tab-view {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Ajustements à la taille minimale HD (1080×720) */
+@media (max-width: 1180px) {
+  .app-nav-tab {
+    padding: 9px 16px;
+    font-size: 14px;
+  }
+
+  .app-subnav-tab {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .app-account-name {
+    max-width: 80px;
+  }
+
+  .view-title {
+    font-size: 18px;
+  }
+
+  .action-btn {
+    padding: 11px 28px;
+  }
+
+  .wiki-infobox {
+    width: min(220px, 100%);
+  }
+}
+
+@media (max-height: 760px) {
+  .scrollable-content {
+    padding: 16px 20px;
+  }
+
+  .persistent-action-bar {
+    padding: 12px 20px;
+  }
+
+  .news-card-premium {
+    padding: 16px;
+  }
 }

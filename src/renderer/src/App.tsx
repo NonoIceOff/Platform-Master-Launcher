@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type ReactElement } from 'react'
 import './App.css'
 import Wiki from './components/Wiki'
+import Partycipate from './partycipate/Partycipate'
 
 const VERSIONS_URL =
   'https://api.github.com/repos/NonoIceOff/Platform-Master/contents/versions.json?ref=new-master'
@@ -16,7 +17,14 @@ interface VersionsData {
   versions: Version[]
 }
 
-const NAV_TABS = ['Actualités', 'Platform Master', 'Wiki', 'Configuration']
+type AppSection = 'pm' | 'pc' | 'configuration'
+type PmTab = 'Actualités' | 'Platform Master' | 'Wiki'
+
+const PM_TABS: { id: PmTab; label: string }[] = [
+  { id: 'Actualités', label: 'Actualités' },
+  { id: 'Platform Master', label: 'Profil jeu' },
+  { id: 'Wiki', label: 'Wiki' }
+]
 
 export default function App(): ReactElement {
   const [versions, setVersions] = useState<Version[]>([])
@@ -26,19 +34,49 @@ export default function App(): ReactElement {
   const [progress, setProgress] = useState<number>(0)
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [refreshing, setRefreshing] = useState<boolean>(false)
-  const [activeTab, setActiveTab] = useState<string>('Actualités')
+  const [activeSection, setActiveSection] = useState<AppSection>('pm')
+  const [pmTab, setPmTab] = useState<PmTab>('Actualités')
   const [expandedVersion, setExpandedVersion] = useState<string | null>(null)
   const [playtime, setPlaytime] = useState(0)
+  const [session, setSession] = useState<{ user: { id: string; email: string; username: string } } | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authUsername, setAuthUsername] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false)
 
   useEffect(() => {
     loadVersions()
     window.launcher.getInstalledVersion().then(setInstalled)
+    void window.launcher.validateSession().then(({ session: s, expired }) => {
+      if (expired) {
+        setSession(null)
+        setSessionExpiredNotice(true)
+        setActiveSection('configuration')
+      } else if (s) {
+        setSession({ user: s.user })
+      }
+      setSessionReady(true)
+    })
 
     const unsub = window.launcher.onDownloadProgress(({ pct }: { pct: number }) => {
       setProgress(pct)
     })
     window.launcher.getPlaytime().then(setPlaytime)
-    return unsub
+
+    const onSessionExpired = (): void => {
+      setSession(null)
+      setSessionExpiredNotice(true)
+      setActiveSection('configuration')
+    }
+    window.addEventListener('mnet-session-expired', onSessionExpired)
+
+    return () => {
+      unsub()
+      window.removeEventListener('mnet-session-expired', onSessionExpired)
+    }
   }, [])
 
   const formatPlaytime = (seconds: number): string => {
@@ -116,59 +154,112 @@ export default function App(): ReactElement {
     }
   }
 
+  const handleAuthSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault()
+    setAuthLoading(true)
+    setErrorMsg('')
+
+    try {
+      const result =
+        authMode === 'login'
+          ? await window.launcher.login(authEmail, authPassword)
+          : await window.launcher.register(authEmail, authUsername, authPassword)
+      setSession(result)
+      setAuthPassword('')
+      setSessionExpiredNotice(false)
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : String(err)
+      setErrorMsg(raw.replace(/^Error invoking remote method '[^']+':\s*/, ''))
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleReauth = async (): Promise<void> => {
+    await window.launcher.logout()
+    setSession(null)
+    setActiveSection('configuration')
+  }
+
+  const handleLogout = async (): Promise<void> => {
+    await window.launcher.logout()
+    setSession(null)
+    setAuthEmail('')
+    setAuthUsername('')
+    setAuthPassword('')
+  }
+
   // Correction de la condition : Est-ce que la version sélectionnée AU BAS de l'écran correspond à celle installée ?
   const isInstalled = selected !== null && installed === selected.version
   const isDownloading = status === 'downloading'
   const isLaunching = status === 'launching'
+  const showGameBar =
+    activeSection === 'pm' && (pmTab === 'Actualités' || pmTab === 'Platform Master')
 
   return (
     <div className="app dashboard-layout">
-      {/* BARRE DE TITRE */}
-      <div className="titlebar">
+      <header className="titlebar">
         <div className="titlebar-controls">
           <button className="titlebar-btn close" onClick={() => window.launcher.close()} />
           <button className="titlebar-btn minimize" onClick={() => window.launcher.minimize()} />
         </div>
+
+        <nav className="app-nav">
+          <button
+            type="button"
+            className={`app-nav-tab app-nav-tab-pm ${activeSection === 'pm' ? 'active' : ''}`}
+            onClick={() => setActiveSection('pm')}
+          >
+            Platform Master
+          </button>
+          <button
+            type="button"
+            className={`app-nav-tab app-nav-tab-pc ${activeSection === 'pc' ? 'active' : ''}`}
+            onClick={() => setActiveSection('pc')}
+          >
+            Party-cipate
+          </button>
+        </nav>
+
         <div className="titlebar-drag">
-          <span className="titlebar-drag-title">PLATFORM MASTER LAUNCHER</span>
+          <span className="titlebar-drag-title">M-NETWORK LAUNCHER</span>
         </div>
-      </div>
+
+        <button
+          type="button"
+          className={`app-account-btn ${activeSection === 'configuration' ? 'active' : ''}`}
+          onClick={() => setActiveSection('configuration')}
+        >
+          <span className="app-account-avatar">
+            {session ? session.user.username.slice(0, 2).toUpperCase() : '?'}
+          </span>
+          <span className="app-account-name">
+            {session ? session.user.username : 'Se connecter'}
+          </span>
+          {session && <span className="app-account-dot" />}
+        </button>
+      </header>
+
+      {activeSection === 'pm' && (
+        <nav className="app-subnav app-subnav--pm">
+          {PM_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`app-subnav-tab ${pmTab === tab.id ? 'active' : ''}`}
+              onClick={() => setPmTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
 
       <div className="main-container">
-        {/* SIDEBAR GAUCHE */}
-        <aside className="sidebar">
-          <div className="sidebar-brand">
-            <div className="brand-avatar">PM</div>
-            <div className="brand-text">
-              <h4>M-Network</h4>
-              <p className="status-online"><span className="pulse-dot" /> Connecté</p>
-            </div>
-          </div>
-          <div className="sidebar-menu">
-            {NAV_TABS.map(tab => (
-              <button
-                key={tab}
-                className={`nav-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                <span className="nav-icon">
-                  {tab === 'Actualités' && '📰'}
-                  {tab === 'Platform Master' && '🎮'}
-                  {tab === 'Configuration' && '⚙️'}
-                  {tab === 'Wiki' && '📖'}
-                </span>
-                <span>{tab}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        {/* CONTENU DROIT */}
         <div className="content-wrapper">
-          <main className="scrollable-content">
+          <main className={`scrollable-content${activeSection === 'pc' ? ' scrollable-content-embedded' : ''}`}>
 
-            {/* ONGLET 1 : ACTUALITÉS */}
-            {activeTab === 'Actualités' && (
+            {activeSection === 'pm' && pmTab === 'Actualités' && (
               <div className="tab-view animate-fade-in">
                 <div className="view-header">
                   <div>
@@ -232,8 +323,7 @@ export default function App(): ReactElement {
               </div>
             )}
 
-            {/* ONGLET 2 : PLATFORM MASTER */}
-            {activeTab === 'Platform Master' && (
+            {activeSection === 'pm' && pmTab === 'Platform Master' && (
               <div className="tab-view animate-fade-in">
                 <div className="view-header">
                   <div>
@@ -278,29 +368,122 @@ export default function App(): ReactElement {
               </div>
             )}
 
-            {activeTab === 'Wiki' && <Wiki />}
+            {activeSection === 'pm' && pmTab === 'Wiki' && <Wiki />}
 
-            {/* ONGLET 3 : CONFIGURATION */}
-            {activeTab === 'Configuration' && (
+            {activeSection === 'pc' && (
+              <Partycipate
+                session={session}
+                sessionReady={sessionReady}
+                onGoToLogin={() => setActiveSection('configuration')}
+                onReauth={handleReauth}
+              />
+            )}
+
+            {activeSection === 'configuration' && (
               <div className="tab-view animate-fade-in">
                 <div className="view-header">
                   <div>
-                    <h2 className="view-title">Paramètres avancés</h2>
-                    <p className="view-subtitle">Ajustements et options de l'exécutable.</p>
+                    <h2 className="view-title">Compte M-Network</h2>
+                    <p className="view-subtitle">
+                      Un seul compte pour Platform Master et Party-cipate.
+                    </p>
                   </div>
                 </div>
-                <div className="empty-state-card">
-                  <span className="empty-icon">⚙️</span>
-                  <h3>Espace en développement</h3>
-                  <p>L'allocation de mémoire RAM sera implémentée dans la prochaine build.</p>
-                </div>
+
+                {sessionExpiredNotice && !session && (
+                  <div className="auth-expired-banner">
+                    Votre session a expiré. Reconnectez-vous pour utiliser Party-cipate et les
+                    fonctionnalités en ligne.
+                  </div>
+                )}
+
+                {session ? (
+                  <div className="account-card">
+                    <div className="account-avatar-large">
+                      {session.user.username.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="account-info">
+                      <h3>{session.user.username}</h3>
+                      <p className="account-email">{session.user.email}</p>
+                      <p className="account-hint">
+                        Votre compte sera automatiquement utilisé lors du lancement du jeu.
+                      </p>
+                    </div>
+                    <button className="action-btn btn-logout" onClick={handleLogout}>
+                      SE DÉCONNECTER
+                    </button>
+                  </div>
+                ) : (
+                  <div className="auth-card">
+                    <div className="auth-tabs">
+                      <button
+                        className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
+                        onClick={() => setAuthMode('login')}
+                      >
+                        Connexion
+                      </button>
+                      <button
+                        className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
+                        onClick={() => setAuthMode('register')}
+                      >
+                        Inscription
+                      </button>
+                    </div>
+
+                    <form className="auth-form" onSubmit={handleAuthSubmit}>
+                      {authMode === 'register' && (
+                        <div className="auth-field">
+                          <label>Pseudo</label>
+                          <input
+                            type="text"
+                            value={authUsername}
+                            onChange={(e) => setAuthUsername(e.target.value)}
+                            placeholder="MonPseudo"
+                            required
+                            minLength={3}
+                            maxLength={24}
+                            pattern="[a-zA-Z0-9_]+"
+                          />
+                        </div>
+                      )}
+                      <div className="auth-field">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          placeholder="email@exemple.com"
+                          required
+                        />
+                      </div>
+                      <div className="auth-field">
+                        <label>Mot de passe</label>
+                        <input
+                          type="password"
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          minLength={8}
+                        />
+                      </div>
+                      <button className="action-btn btn-install auth-submit" disabled={authLoading}>
+                        {authLoading
+                          ? 'PATIENTEZ...'
+                          : authMode === 'login'
+                            ? 'SE CONNECTER'
+                            : 'CRÉER UN COMPTE'}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             )}
 
-            {errorMsg && <div className="global-error-toast">⚠ {errorMsg}</div>}
+            {errorMsg && showGameBar && <div className="global-error-toast">⚠ {errorMsg}</div>}
           </main>
 
-          {/* BARRE DE LANCEMENT BASSE PERMANENTE */}
+          {showGameBar && (
           <footer className="persistent-action-bar">
             {isDownloading && (
               <div className="premium-progress-area">
@@ -338,6 +521,7 @@ export default function App(): ReactElement {
               )}
             </div>
           </footer>
+          )}
         </div>
       </div>
     </div>

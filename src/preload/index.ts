@@ -12,6 +12,31 @@ contextBridge.exposeInMainWorld('launcher', {
 
   getPlaytime: () => ipcRenderer.invoke('get-playtime'),
 
+  getApiBase: () => ipcRenderer.invoke('get-api-base') as Promise<string>,
+
+  getSession: () => ipcRenderer.invoke('auth-get-session'),
+
+  validateSession: () =>
+    ipcRenderer.invoke('auth-validate-session') as Promise<{
+      session: { user: { id: string; email: string; username: string } } | null
+      expired: boolean
+    }>,
+
+  login: (email: string, password: string) =>
+    ipcRenderer.invoke('auth-login', { email, password }),
+
+  register: (email: string, username: string, password: string) =>
+    ipcRenderer.invoke('auth-register', { email, username, password }),
+
+  logout: () => ipcRenderer.invoke('auth-logout'),
+
+  apiRequest: (options: {
+    method?: string
+    path: string
+    body?: unknown
+    auth?: boolean
+  }) => ipcRenderer.invoke('api-request', options),
+
   close: () => ipcRenderer.send('window-close'),
 
   minimize: () => ipcRenderer.send('window-minimize'),

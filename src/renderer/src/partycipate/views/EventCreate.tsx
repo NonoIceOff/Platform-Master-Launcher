@@ -1,0 +1,236 @@
+import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
+import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react'
+import { apiDelete, apiFetch } from '../api'
+import { useToast } from '../components/Toast'
+import type { PartycipateSession, PartycipateView } from '../types'
+
+interface EventCreateProps {
+  session: PartycipateSession | null
+  sessionReady: boolean
+  onNavigate: (view: PartycipateView) => void
+  onBack: () => void
+  eventId?: number
+}
+
+export default function EventCreate({
+  session,
+  sessionReady,
+  onNavigate,
+  onBack,
+  eventId
+}: EventCreateProps): ReactElement {
+  const isEdit = !!eventId
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    long_description: '',
+    image_url: '',
+    starts_at: '',
+    is_open: true,
+    max_candidates: 1
+  })
+  const [loading, setLoading] = useState(false)
+  const [drawDone, setDrawDone] = useState(false)
+  const { showToast, ToastComponent } = useToast()
+
+  useEffect(() => {
+    if (!sessionReady) return
+    if (!session) onNavigate({ type: 'auth-required' })
+  }, [session, sessionReady, onNavigate])
+
+  useEffect(() => {
+    if (!eventId) return
+    void (async () => {
+      try {
+        const res = await apiFetch(`/events/${eventId}`)
+        if (!res.ok) return
+        const json = await res.json()
+        const data = json.data ?? json
+        setDrawDone(!!data.draw_done)
+        setForm({
+          name: data.name ?? '',
+          description: data.description ?? '',
+          long_description: data.long_description ?? '',
+          image_url: data.image_url ?? '',
+          starts_at: data.starts_at ? data.starts_at.slice(0, 16) : '',
+          is_open: !!data.is_open,
+          max_candidates: data.max_candidates ?? 1
+        })
+      } catch {
+        showToast("Impossible de charger l'événement", 'error')
+      }
+    })()
+  }, [eventId, showToast])
+
+  async function handleSubmit(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!session) return onNavigate({ type: 'auth-required' })
+    if (!form.name.trim()) return showToast("Le nom de l'événement est requis.", 'error')
+
+    setLoading(true)
+    try {
+      const payload = {
+        ...form,
+        max_candidates: Math.max(1, Number(form.max_candidates) || 1),
+        starts_at: form.starts_at || undefined,
+        image_url: form.image_url || undefined
+      }
+      const res = await apiFetch(isEdit ? `/events/${eventId}` : '/events/', {
+        method: isEdit ? 'PATCH' : 'POST',
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.message || err.error || 'Erreur', 'error')
+        return
+      }
+      const event = await res.json()
+      showToast(isEdit ? 'Événement mis à jour !' : 'Événement créé !', 'success')
+      setTimeout(() => onNavigate({ type: 'event', id: event.id ?? eventId! }), 600)
+    } catch (err: unknown) {
+      const msg = (err as Error).message || 'Erreur inattendue'
+      showToast(
+        msg.includes('Token') || msg.includes('Session')
+          ? 'Session expirée — reconnectez-vous dans Configuration'
+          : msg,
+        'error'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!eventId || !session) return
+    if (!window.confirm('Supprimer cet événement définitivement ?')) return
+    setLoading(true)
+    try {
+      await apiDelete(`/events/${eventId}`)
+      showToast('Événement supprimé', 'success')
+      setTimeout(() => onBack(), 400)
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="pc-view">
+      <div className="pc-detail-header">
+        <button type="button" className="pc-icon-btn" onClick={onBack}>
+          <ArrowLeft size={16} />
+        </button>
+        <div>
+          <p className="pc-view-kicker">{isEdit ? 'Modifier' : 'Nouveau'}</p>
+          <h2 className="pc-view-title">
+            {isEdit ? "Modifier l'événement" : 'Créer un événement'}
+          </h2>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="pc-form">
+        <label>
+          Nom de l&apos;événement *
+          <input
+            name="name"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Soirée Pizza & Jeux"
+          />
+        </label>
+
+        <label>
+          Description courte
+          <input
+            name="description"
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            placeholder="Résumé en quelques mots"
+          />
+        </label>
+
+        <label>
+          Description complète
+          <textarea
+            name="long_description"
+            value={form.long_description}
+            onChange={(e) => setForm((p) => ({ ...p, long_description: e.target.value }))}
+            rows={4}
+            placeholder="Décrivez votre événement en détail…"
+          />
+        </label>
+
+        <label>
+          URL de l&apos;image
+          <input
+            name="image_url"
+            value={form.image_url}
+            onChange={(e) => setForm((p) => ({ ...p, image_url: e.target.value }))}
+            type="url"
+            placeholder="https://exemple.com/image.jpg"
+          />
+        </label>
+
+        <label>
+          Nombre de gagnants (tirage au sort)
+          <input
+            name="max_candidates"
+            type="number"
+            min={1}
+            max={999}
+            value={form.max_candidates}
+            disabled={drawDone}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                max_candidates: Math.max(1, Number(e.target.value) || 1)
+              }))
+            }
+          />
+        </label>
+
+        <label>
+          Date et heure
+          <input
+            name="starts_at"
+            value={form.starts_at}
+            onChange={(e) => setForm((p) => ({ ...p, starts_at: e.target.value }))}
+            type="datetime-local"
+          />
+        </label>
+
+        <div className="pc-toggle-row">
+          <div>
+            <p className="pc-toggle-label">Événement ouvert</p>
+            <p className="pc-toggle-hint">Les participants peuvent s&apos;inscrire</p>
+          </div>
+          <button
+            type="button"
+            className={`pc-toggle ${form.is_open ? 'pc-toggle-on' : ''}`}
+            disabled={drawDone}
+            onClick={() => setForm((p) => ({ ...p, is_open: !p.is_open }))}
+          />
+        </div>
+
+        <button type="submit" disabled={loading} className="pc-btn pc-btn-primary pc-btn-full">
+          <PlusCircle size={18} />
+          {loading ? 'En cours…' : isEdit ? 'Enregistrer' : "Créer l'événement"}
+        </button>
+
+        {isEdit && (
+          <button
+            type="button"
+            className="pc-btn pc-btn-danger pc-btn-full"
+            disabled={loading}
+            onClick={handleDelete}
+          >
+            <Trash2 size={16} />
+            Supprimer l&apos;événement
+          </button>
+        )}
+      </form>
+      {ToastComponent}
+    </div>
+  )
+}

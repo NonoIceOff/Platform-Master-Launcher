@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, ipcMain, shell, safeStorage, type IpcMainInvokeEvent } from 'electron'
+import { join, basename, resolve } from 'path'
 import fs from 'node:fs'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { ReadableStream } from 'node:stream/web'
-import { exec } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import 'dotenv/config'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
@@ -13,6 +13,40 @@ import log from 'electron-log'
    🧠 GLOBAL WINDOW (FIX IMPORTANT)
 ──────────────────────────────── */
 let mainWindow: BrowserWindow | null = null
+
+const MAX_OFFLINE_MS = 7 * 24 * 60 * 60 * 1000
+
+function assertTrustedSender(event: IpcMainInvokeEvent): void {
+  if (mainWindow && event.sender !== mainWindow.webContents) {
+    throw new Error('Accès IPC refusé')
+  }
+}
+
+function toPublicSession(session: AuthSession): PublicSession {
+  return { user: session.user }
+}
+
+function normalizeApiPath(path: string): string {
+  if (!path || typeof path !== 'string') {
+    throw new Error('Chemin API invalide')
+  }
+  if (/^https?:\/\//i.test(path)) {
+    throw new Error('URL absolue interdite')
+  }
+  const normalized = path.startsWith('/api/') ? path : `/api/${path.replace(/^\//, '')}`
+  if (normalized.includes('..')) {
+    throw new Error('Chemin API invalide')
+  }
+  return normalized
+}
+
+function sanitizeFilename(filename: string): string {
+  const safe = basename(decodeURIComponent(filename || ''))
+  if (!safe || safe === '.' || safe === '..' || /[\\/]/.test(safe)) {
+    throw new Error('Nom de fichier invalide')
+  }
+  return safe
+}
 
 /* ────────────────────────────────
    📦 AUTO UPDATER CONFIG
@@ -26,6 +60,8 @@ autoUpdater.autoDownload = true
 ──────────────────────────────── */
 const INSTALL_DIR = join(app.getPath('userData'), 'versions')
 const PLAYTIME_FILE = join(app.getPath('userData'), 'playtime.json')
+const AUTH_FILE = join(app.getPath('userData'), 'auth.json')
+const GODOT_USERDATA = join(app.getPath('appData'), 'Godot', 'app_userdata', 'Platform Master')
 
 /* ────────────────────────────────
    ⏱ PLAYTIME
@@ -41,13 +77,20 @@ function getPlaytime(): number {
 }
 
 /* ────────────────────────────────
-   🪟 WINDOW
+   🪟 WINDOW — HD minimum 1080×720, redimensionnable
 ──────────────────────────────── */
+const WINDOW_MIN_WIDTH = 1080
+const WINDOW_MIN_HEIGHT = 720
+const WINDOW_DEFAULT_WIDTH = 1280
+const WINDOW_DEFAULT_HEIGHT = 800
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 680,
-    resizable: false,
+    width: WINDOW_DEFAULT_WIDTH,
+    height: WINDOW_DEFAULT_HEIGHT,
+    minWidth: WINDOW_MIN_WIDTH,
+    minHeight: WINDOW_MIN_HEIGHT,
+    resizable: true,
     frame: false,
     transparent: true,
     vibrancy: 'under-window',
@@ -67,13 +110,32 @@ function createWindow(): void {
   } else {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL!)
   }
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      void shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed = app.isPackaged
+      ? url.startsWith('file://')
+      : url.startsWith(process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173')
+    if (!allowed) {
+      event.preventDefault()
+    }
+  })
 }
 
 /* ────────────────────────────────
    🚀 APP LIFECYCLE
 ──────────────────────────────── */
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow()
+
+  const { expired } = await validateAuthSession()
+  syncAuthToGame(expired ? null : readAuthSession())
 
   // 🔥 AUTO UPDATE CHECK
   setTimeout(() => {
@@ -122,7 +184,189 @@ ipcMain.handle('get-playtime', () => {
 /* ────────────────────────────────
    🌐 API
 ──────────────────────────────── */
-const API_BASE = 'https://pm-api-ten.vercel.app'
+const API_BASE =
+  process.env.PM_API_BASE ||
+  (app.isPackaged ? 'https://pm-api-ten.vercel.app' : 'http://localhost:3000')
+
+ipcMain.handle('get-api-base', () => API_BASE)
+
+interface AuthUser {
+  id: string
+  email: string
+  username: string
+  createdAt?: string
+}
+
+interface AuthSession {
+  token: string
+  user: AuthUser
+}
+
+interface PublicSession {
+  user: AuthUser
+}
+
+interface StoredAuth {
+  user: AuthUser
+  token?: string
+  tokenEnc?: string
+  lastVerifiedAt?: string
+}
+
+function readAuthSession(): AuthSession | null {
+  try {
+    if (!fs.existsSync(AUTH_FILE)) return null
+    const stored = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8')) as StoredAuth
+    if (!stored.user?.username) return null
+
+    let token = stored.token || ''
+    if (stored.tokenEnc && safeStorage.isEncryptionAvailable()) {
+      token = safeStorage.decryptString(Buffer.from(stored.tokenEnc, 'base64'))
+    }
+
+    if (!token) return null
+    return { token, user: stored.user }
+  } catch {
+    return null
+  }
+}
+
+function writeAuthSession(session: AuthSession | null): void {
+  if (!session) {
+    if (fs.existsSync(AUTH_FILE)) fs.unlinkSync(AUTH_FILE)
+    return
+  }
+
+  const stored: StoredAuth = {
+    user: session.user,
+    lastVerifiedAt: new Date().toISOString()
+  }
+
+  if (safeStorage.isEncryptionAvailable()) {
+    stored.tokenEnc = safeStorage.encryptString(session.token).toString('base64')
+  } else if (!app.isPackaged) {
+    stored.token = session.token
+  } else {
+    throw new Error('Chiffrement OS indisponible — session non enregistrée')
+  }
+
+  fs.writeFileSync(AUTH_FILE, JSON.stringify(stored, null, 2))
+}
+
+async function validateAuthSession(): Promise<{
+  session: PublicSession | null
+  expired: boolean
+}> {
+  const session = readAuthSession()
+  if (!session) return { session: null, expired: false }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/verify`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        Accept: 'application/json',
+        'User-Agent': 'Platform-Master-Launcher'
+      }
+    })
+
+    if (!res.ok) {
+      writeAuthSession(null)
+      return { session: null, expired: true }
+    }
+
+    const data = await parseApiResponse(res)
+    const user = data.user as AuthUser | undefined
+    const refreshed: AuthSession = user
+      ? {
+          token: session.token,
+          user: {
+            id: String(user.id ?? session.user.id),
+            email: user.email ?? session.user.email,
+            username: user.username ?? session.user.username,
+            createdAt: user.createdAt ?? session.user.createdAt
+          }
+        }
+      : session
+
+    if (user) writeAuthSession(refreshed)
+    return { session: toPublicSession(refreshed), expired: false }
+  } catch {
+    const lastVerifiedAt = readAuthSessionLastVerified()
+    if (lastVerifiedAt && Date.now() - lastVerifiedAt > MAX_OFFLINE_MS) {
+      writeAuthSession(null)
+      return { session: null, expired: true }
+    }
+    return { session: toPublicSession(session), expired: false }
+  }
+}
+
+function readAuthSessionLastVerified(): number | null {
+  try {
+    if (!fs.existsSync(AUTH_FILE)) return null
+    const stored = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8')) as StoredAuth
+    if (!stored.lastVerifiedAt) return null
+    const ts = Date.parse(stored.lastVerifiedAt)
+    return Number.isNaN(ts) ? null : ts
+  } catch {
+    return null
+  }
+}
+
+async function parseApiResponse(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
+      throw new Error(
+        `Service de comptes indisponible sur ${API_BASE} — lancez pm-api (npm start) ou définissez PM_API_BASE dans .env`
+      )
+    }
+    throw new Error('Réponse serveur invalide')
+  }
+}
+
+async function authRequest(path: string, body?: Record<string, string>): Promise<AuthSession> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': 'Platform-Master-Launcher'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  })
+
+  const data = await parseApiResponse(res)
+  if (!res.ok) {
+    throw new Error(String(data.error || `Erreur ${res.status}`))
+  }
+
+  const token = data.token as string | undefined
+  const user = data.user as AuthUser | undefined
+  if (!token || !user?.username) {
+    throw new Error('Réponse serveur invalide')
+  }
+
+  return { token, user }
+}
+
+function syncAuthToGame(session: AuthSession | null): void {
+  if (!fs.existsSync(GODOT_USERDATA)) {
+    fs.mkdirSync(GODOT_USERDATA, { recursive: true })
+  }
+
+  const authPath = join(GODOT_USERDATA, 'launcher_auth.json')
+  const namePath = join(GODOT_USERDATA, 'player_name.txt')
+
+  if (session) {
+    fs.writeFileSync(authPath, JSON.stringify({ user: session.user }, null, 2))
+    fs.writeFileSync(namePath, session.user.username)
+  } else {
+    if (fs.existsSync(authPath)) fs.unlinkSync(authPath)
+  }
+}
 
 ipcMain.handle('fetch-versions', async () => {
   const res = await fetch(`${API_BASE}/api/versions`, {
@@ -140,6 +384,104 @@ ipcMain.handle('fetch-versions', async () => {
 
   return await res.json()
 })
+
+ipcMain.handle('auth-get-session', (event) => {
+  assertTrustedSender(event)
+  const session = readAuthSession()
+  return session ? toPublicSession(session) : null
+})
+
+ipcMain.handle('auth-validate-session', (event) => {
+  assertTrustedSender(event)
+  return validateAuthSession()
+})
+
+ipcMain.handle('auth-login', async (event, { email, password }: { email: string; password: string }) => {
+  assertTrustedSender(event)
+  const session = await authRequest('/api/auth/login', { email, password })
+  writeAuthSession(session)
+  syncAuthToGame(session)
+  return toPublicSession(session)
+})
+
+ipcMain.handle(
+  'auth-register',
+  async (
+    event,
+    { email, username, password }: { email: string; username: string; password: string }
+  ) => {
+    assertTrustedSender(event)
+    const session = await authRequest('/api/auth/register', { email, username, password })
+    writeAuthSession(session)
+    syncAuthToGame(session)
+    return toPublicSession(session)
+  }
+)
+
+ipcMain.handle('auth-logout', (event) => {
+  assertTrustedSender(event)
+  writeAuthSession(null)
+  syncAuthToGame(null)
+  return { ok: true }
+})
+
+ipcMain.handle(
+  'api-request',
+  async (
+    event,
+    {
+      method = 'GET',
+      path,
+      body,
+      auth = true
+    }: { method?: string; path: string; body?: unknown; auth?: boolean }
+  ) => {
+    assertTrustedSender(event)
+
+    const apiPath = normalizeApiPath(path)
+    const allowedMethods = ['GET', 'POST', 'PATCH', 'DELETE', 'PUT']
+    const verb = String(method || 'GET').toUpperCase()
+    if (!allowedMethods.includes(verb)) {
+      throw new Error('Méthode HTTP non autorisée')
+    }
+
+    const session = auth ? readAuthSession() : null
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'User-Agent': 'Platform-Master-Launcher'
+    }
+
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+    }
+    if (auth && session?.token) {
+      headers.Authorization = `Bearer ${session.token}`
+    }
+
+    const res = await fetch(`${API_BASE}${apiPath}`, {
+      method: verb,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    })
+
+    const text = await res.text()
+    let data: unknown = null
+    if (text) {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = text
+      }
+    }
+
+    if (res.status === 401 && auth) {
+      writeAuthSession(null)
+      syncAuthToGame(null)
+    }
+
+    return { ok: res.ok, status: res.status, data }
+  }
+)
 
 /* ────────────────────────────────
    📦 INSTALLED VERSION
@@ -186,7 +528,7 @@ ipcMain.handle('delete-game', () => {
 })
 
 function getFilenameFromUrl(fileUrl: string): string {
-  return decodeURIComponent(fileUrl.split('?')[0].split('/').pop() || '')
+  return sanitizeFilename(decodeURIComponent(fileUrl.split('?')[0].split('/').pop() || ''))
 }
 
 function getApiDownloadUrl(version: string, fileUrl: string): string {
@@ -266,7 +608,10 @@ ipcMain.handle(
     for (let i = 0; i < urlList.length; i++) {
       const fileUrl = urlList[i]
       const filename = getFilenameFromUrl(fileUrl)
-      const dest = join(versionDir, filename)
+      const dest = resolve(versionDir, filename)
+      if (!dest.startsWith(resolve(versionDir))) {
+        throw new Error('Chemin de destination invalide')
+      }
       const downloadUrl = getApiDownloadUrl(version, fileUrl)
 
       if (filename.toLowerCase().endsWith('.exe')) {
@@ -319,7 +664,22 @@ ipcMain.handle('launch-game', async () => {
 
   const startTime = Date.now()
 
-  const child = exec(`"${exe}"`)
+  const session = readAuthSession()
+  syncAuthToGame(session)
+
+  const env = { ...process.env }
+  if (session) {
+    env.PM_TOKEN = session.token
+    env.PM_USERNAME = session.user.username
+  }
+
+  const child = spawn(exe, [], {
+    env,
+    detached: true,
+    stdio: 'ignore'
+  })
+
+  child.unref()
 
   child.on('exit', () => {
     const sessionSeconds = Math.floor((Date.now() - startTime) / 1000)
