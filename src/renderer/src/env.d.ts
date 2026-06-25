@@ -5,6 +5,7 @@ interface AuthUser {
   email: string
   username: string
   createdAt?: string
+  profilePicture?: string | null
 }
 
 interface PublicSession {
@@ -30,12 +31,17 @@ declare global {
       getPlaytime: () => Promise<number>
 
       getApiBase: () => Promise<string>
+      getAppVersion: () => Promise<string>
 
       getSession: () => Promise<PublicSession | null>
       validateSession: () => Promise<{ session: PublicSession | null; expired: boolean }>
       login: (email: string, password: string) => Promise<PublicSession>
       register: (email: string, username: string, password: string) => Promise<PublicSession>
       logout: () => Promise<{ ok: boolean }>
+      updateProfile: (payload: {
+        profilePicture?: string | null
+        username?: string
+      }) => Promise<PublicSession>
 
       apiRequest: (options: {
         method?: string

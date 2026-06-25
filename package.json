@@ -27,7 +27,7 @@
   },
   "build": {
     "appId": "fr.nonoice.platformmaster",
-    "productName": "Platform Master Launcher",
+    "productName": "Launcher Master",
     "publish": {
       "provider": "github",
       "owner": "NonoIceOff",

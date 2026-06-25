@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('launcher', {
 
   getApiBase: () => ipcRenderer.invoke('get-api-base') as Promise<string>,
 
+  getAppVersion: () => ipcRenderer.invoke('get-app-version') as Promise<string>,
+
   getSession: () => ipcRenderer.invoke('auth-get-session'),
 
   validateSession: () =>
@@ -29,6 +31,9 @@ contextBridge.exposeInMainWorld('launcher', {
     ipcRenderer.invoke('auth-register', { email, username, password }),
 
   logout: () => ipcRenderer.invoke('auth-logout'),
+
+  updateProfile: (payload: { profilePicture?: string | null; username?: string }) =>
+    ipcRenderer.invoke('auth-update-profile', payload),
 
   apiRequest: (options: {
     method?: string

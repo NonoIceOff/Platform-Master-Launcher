@@ -34,6 +34,9 @@
   --accent-pm-text: #93c5fd;
   --accent-pc-bg: rgba(168, 85, 247, 0.16);
   --accent-pc-text: #c4b5fd;
+  --accent-discord: #5865f2;
+  --accent-discord-bg: rgba(88, 101, 242, 0.18);
+  --accent-discord-text: #b9c0ff;
   --content-padding: clamp(20px, 2.5vw, 36px);
   --action-bar-padding: clamp(14px, 2vw, 24px);
 }
@@ -97,6 +100,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-width: 0;
 }
 .titlebar-drag-title {
@@ -105,6 +109,16 @@ body {
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
+}
+.titlebar-version {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  border-radius: 5px;
+  padding: 2px 6px;
+  letter-spacing: 0.5px;
 }
 
 /* Navigation principale (header) */
@@ -140,6 +154,10 @@ body {
 .app-nav-tab-pc.active {
   background: var(--accent-pc-bg);
   color: var(--accent-pc-text);
+}
+.app-nav-tab-discord.active {
+  background: var(--accent-discord-bg);
+  color: var(--accent-discord-text);
 }
 
 .app-account-btn {
@@ -281,6 +299,7 @@ body {
   text-align: center;
 }
 .account-avatar-large {
+  position: relative;
   width: 72px;
   height: 72px;
   border-radius: 50%;
@@ -291,6 +310,76 @@ body {
   font-size: 24px;
   font-weight: 800;
   color: white;
+}
+
+/* Image d'avatar (header + carte compte) — épouse le rayon du conteneur */
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  border: 2px solid var(--bg-card);
+  color: #fff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.avatar-edit-btn:hover { background: var(--accent-blue-hover); }
+.avatar-edit-btn:active { transform: scale(0.92); }
+.avatar-edit-btn.busy { cursor: progress; opacity: 0.7; }
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-muted);
+  border: 1px solid var(--border-light);
+}
+.btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+
+.auth-error {
+  color: #f87171;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.auth-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  text-align: left;
+}
+
+.account-session-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent-green);
 }
 .account-info h3 { font-size: 20px; font-weight: 700; }
 .account-email { color: var(--color-text-muted); font-size: 13px; margin-top: 4px; }

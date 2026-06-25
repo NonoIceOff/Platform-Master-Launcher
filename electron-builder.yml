@@ -1,5 +1,5 @@
 appId: fr.nonoice.platformmaster
-productName: Platform Master Launcher
+productName: Launcher Master
 directories:
   buildResources: build
 files:

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, type ReactElement } from 'react'
 import './App.css'
 import Wiki from './components/Wiki'
 import Partycipate from './partycipate/Partycipate'
+import Discord from './discord/Discord'
 
 const VERSIONS_URL =
   'https://api.github.com/repos/NonoIceOff/Platform-Master/contents/versions.json?ref=new-master'
@@ -17,7 +18,7 @@ interface VersionsData {
   versions: Version[]
 }
 
-type AppSection = 'pm' | 'pc' | 'configuration'
+type AppSection = 'pm' | 'pc' | 'discord' | 'configuration'
 type PmTab = 'Actualités' | 'Platform Master' | 'Wiki'
 
 const PM_TABS: { id: PmTab; label: string }[] = [
@@ -25,6 +26,14 @@ const PM_TABS: { id: PmTab; label: string }[] = [
   { id: 'Platform Master', label: 'Profil jeu' },
   { id: 'Wiki', label: 'Wiki' }
 ]
+
+function formatLauncherError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  return raw
+    .replace(/^Error invoking remote method '[^']+':\s*/, '')
+    .replace(/ÔÇö/g, '—')
+    .replace(/\u00E2\u0080\u0094/g, '—')
+}
 
 export default function App(): ReactElement {
   const [versions, setVersions] = useState<Version[]>([])
@@ -38,7 +47,11 @@ export default function App(): ReactElement {
   const [pmTab, setPmTab] = useState<PmTab>('Actualités')
   const [expandedVersion, setExpandedVersion] = useState<string | null>(null)
   const [playtime, setPlaytime] = useState(0)
-  const [session, setSession] = useState<{ user: { id: string; email: string; username: string } } | null>(null)
+  const [session, setSession] = useState<{
+    user: { id: string; email: string; username: string; profilePicture?: string | null }
+  } | null>(null)
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
   const [sessionReady, setSessionReady] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const [authEmail, setAuthEmail] = useState('')
@@ -46,6 +59,7 @@ export default function App(): ReactElement {
   const [authPassword, setAuthPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
     loadVersions()
@@ -65,6 +79,7 @@ export default function App(): ReactElement {
       setProgress(pct)
     })
     window.launcher.getPlaytime().then(setPlaytime)
+    window.launcher.getAppVersion().then(setAppVersion)
 
     const onSessionExpired = (): void => {
       setSession(null)
@@ -168,8 +183,7 @@ export default function App(): ReactElement {
       setAuthPassword('')
       setSessionExpiredNotice(false)
     } catch (err: unknown) {
-      const raw = err instanceof Error ? err.message : String(err)
-      setErrorMsg(raw.replace(/^Error invoking remote method '[^']+':\s*/, ''))
+      setErrorMsg(formatLauncherError(err))
     } finally {
       setAuthLoading(false)
     }
@@ -187,6 +201,66 @@ export default function App(): ReactElement {
     setAuthEmail('')
     setAuthUsername('')
     setAuthPassword('')
+  }
+
+  const resizeImageToDataUrl = (file: File, max = 256): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onerror = () => reject(new Error('Lecture du fichier impossible'))
+      reader.onload = () => {
+        const img = new Image()
+        img.onerror = () => reject(new Error('Image invalide'))
+        img.onload = () => {
+          const scale = Math.min(1, max / Math.max(img.width, img.height))
+          const w = Math.max(1, Math.round(img.width * scale))
+          const h = Math.max(1, Math.round(img.height * scale))
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return reject(new Error('Canvas non supporté'))
+          ctx.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL('image/webp', 0.85))
+        }
+        img.src = reader.result as string
+      }
+      reader.readAsDataURL(file)
+    })
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    setAvatarError('')
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Veuillez choisir une image.')
+      return
+    }
+
+    setAvatarBusy(true)
+    try {
+      const dataUrl = await resizeImageToDataUrl(file)
+      const updated = await window.launcher.updateProfile({ profilePicture: dataUrl })
+      setSession(updated)
+    } catch (err: unknown) {
+      setAvatarError(formatLauncherError(err))
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  const handleAvatarRemove = async (): Promise<void> => {
+    setAvatarError('')
+    setAvatarBusy(true)
+    try {
+      const updated = await window.launcher.updateProfile({ profilePicture: null })
+      setSession(updated)
+    } catch (err: unknown) {
+      setAvatarError(formatLauncherError(err))
+    } finally {
+      setAvatarBusy(false)
+    }
   }
 
   // Correction de la condition : Est-ce que la version sélectionnée AU BAS de l'écran correspond à celle installée ?
@@ -219,10 +293,18 @@ export default function App(): ReactElement {
           >
             Party-cipate
           </button>
+          <button
+            type="button"
+            className={`app-nav-tab app-nav-tab-discord ${activeSection === 'discord' ? 'active' : ''}`}
+            onClick={() => setActiveSection('discord')}
+          >
+            Chat
+          </button>
         </nav>
 
         <div className="titlebar-drag">
-          <span className="titlebar-drag-title">M-NETWORK LAUNCHER</span>
+          <span className="titlebar-drag-title">LAUNCHER MASTER</span>
+          {appVersion && <span className="titlebar-version">v{appVersion}</span>}
         </div>
 
         <button
@@ -231,7 +313,13 @@ export default function App(): ReactElement {
           onClick={() => setActiveSection('configuration')}
         >
           <span className="app-account-avatar">
-            {session ? session.user.username.slice(0, 2).toUpperCase() : '?'}
+            {session?.user.profilePicture ? (
+              <img src={session.user.profilePicture} alt="" className="avatar-img" />
+            ) : session ? (
+              session.user.username.slice(0, 2).toUpperCase()
+            ) : (
+              '?'
+            )}
           </span>
           <span className="app-account-name">
             {session ? session.user.username : 'Se connecter'}
@@ -257,7 +345,7 @@ export default function App(): ReactElement {
 
       <div className="main-container">
         <div className="content-wrapper">
-          <main className={`scrollable-content${activeSection === 'pc' ? ' scrollable-content-embedded' : ''}`}>
+          <main className={`scrollable-content${activeSection === 'pc' || activeSection === 'discord' ? ' scrollable-content-embedded' : ''}`}>
 
             {activeSection === 'pm' && pmTab === 'Actualités' && (
               <div className="tab-view animate-fade-in">
@@ -379,6 +467,13 @@ export default function App(): ReactElement {
               />
             )}
 
+            {activeSection === 'discord' && (
+              <Discord
+                session={session}
+                onRequireLogin={() => setActiveSection('configuration')}
+              />
+            )}
+
             {activeSection === 'configuration' && (
               <div className="tab-view animate-fade-in">
                 <div className="view-header">
@@ -400,18 +495,53 @@ export default function App(): ReactElement {
                 {session ? (
                   <div className="account-card">
                     <div className="account-avatar-large">
-                      {session.user.username.slice(0, 2).toUpperCase()}
+                      {session.user.profilePicture ? (
+                        <img src={session.user.profilePicture} alt="" className="avatar-img" />
+                      ) : (
+                        session.user.username.slice(0, 2).toUpperCase()
+                      )}
+                      <label
+                        className={`avatar-edit-btn ${avatarBusy ? 'busy' : ''}`}
+                        title="Changer la photo de profil"
+                      >
+                        {avatarBusy ? '…' : '✎'}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={handleAvatarChange}
+                          disabled={avatarBusy}
+                          hidden
+                        />
+                      </label>
                     </div>
+
                     <div className="account-info">
                       <h3>{session.user.username}</h3>
                       <p className="account-email">{session.user.email}</p>
                       <p className="account-hint">
                         Votre compte sera automatiquement utilisé lors du lancement du jeu.
                       </p>
+                      <p className="account-hint account-session-hint">
+                        Session active pendant 7 jours (reconnexion automatique).
+                      </p>
                     </div>
-                    <button className="action-btn btn-logout" onClick={handleLogout}>
-                      SE DÉCONNECTER
-                    </button>
+
+                    {avatarError && <p className="auth-error">{avatarError}</p>}
+
+                    <div className="account-actions">
+                      {session.user.profilePicture && (
+                        <button
+                          className="action-btn btn-secondary"
+                          onClick={handleAvatarRemove}
+                          disabled={avatarBusy}
+                        >
+                          RETIRER LA PHOTO
+                        </button>
+                      )}
+                      <button className="action-btn btn-logout" onClick={handleLogout}>
+                        SE DÉCONNECTER
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="auth-card">
@@ -431,6 +561,11 @@ export default function App(): ReactElement {
                     </div>
 
                     <form className="auth-form" onSubmit={handleAuthSubmit}>
+                      {errorMsg && (
+                        <div className="auth-error-banner" role="alert">
+                          {errorMsg}
+                        </div>
+                      )}
                       {authMode === 'register' && (
                         <div className="auth-field">
                           <label>Pseudo</label>
@@ -480,7 +615,11 @@ export default function App(): ReactElement {
               </div>
             )}
 
-            {errorMsg && showGameBar && <div className="global-error-toast">⚠ {errorMsg}</div>}
+            {errorMsg && (showGameBar || activeSection === 'configuration') && (
+              <div className="global-error-toast" role="alert">
+                ⚠ {errorMsg}
+              </div>
+            )}
           </main>
 
           {showGameBar && (

@@ -15,6 +15,18 @@ import log from 'electron-log'
 let mainWindow: BrowserWindow | null = null
 
 const MAX_OFFLINE_MS = 7 * 24 * 60 * 60 * 1000
+const SESSION_REVERIFY_MS = 24 * 60 * 60 * 1000
+
+function getTokenExpiryMs(token: string): number | null {
+  try {
+    const part = token.split('.')[1]
+    if (!part) return null
+    const payload = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as { exp?: number }
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   if (mainWindow && event.sender !== mainWindow.webContents) {
@@ -105,10 +117,11 @@ function createWindow(): void {
     }
   })
 
-  if (app.isPackaged) {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL
+  if (!app.isPackaged && rendererUrl) {
+    mainWindow.loadURL(rendererUrl)
   } else {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL!)
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -119,9 +132,10 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed = app.isPackaged
-      ? url.startsWith('file://')
-      : url.startsWith(process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173')
+    const allowed =
+      !app.isPackaged && rendererUrl
+        ? url.startsWith(rendererUrl)
+        : url.startsWith('file://')
     if (!allowed) {
       event.preventDefault()
     }
@@ -186,15 +200,37 @@ ipcMain.handle('get-playtime', () => {
 ──────────────────────────────── */
 const API_BASE =
   process.env.PM_API_BASE ||
-  (app.isPackaged ? 'https://pm-api-ten.vercel.app' : 'http://localhost:3000')
+  (app.isPackaged ? 'https://api.montdescartes.fr' : 'http://localhost:3000')
 
 ipcMain.handle('get-api-base', () => API_BASE)
+
+ipcMain.handle('get-app-version', () => app.getVersion())
 
 interface AuthUser {
   id: string
   email: string
   username: string
   createdAt?: string
+  profilePicture?: string | null
+}
+
+interface ApiUser {
+  id?: string | number
+  email?: string
+  username?: string
+  createdAt?: string
+  profile_picture?: string | null
+}
+
+function mapApiUser(apiUser: ApiUser | undefined, fallback?: AuthUser): AuthUser | null {
+  if (!apiUser && !fallback) return null
+  return {
+    id: String(apiUser?.id ?? fallback?.id ?? ''),
+    email: apiUser?.email ?? fallback?.email ?? '',
+    username: apiUser?.username ?? fallback?.username ?? '',
+    createdAt: apiUser?.createdAt ?? fallback?.createdAt,
+    profilePicture: apiUser?.profile_picture ?? fallback?.profilePicture ?? null
+  }
 }
 
 interface AuthSession {
@@ -260,6 +296,17 @@ async function validateAuthSession(): Promise<{
   const session = readAuthSession()
   if (!session) return { session: null, expired: false }
 
+  const tokenExp = getTokenExpiryMs(session.token)
+  if (tokenExp && Date.now() >= tokenExp) {
+    writeAuthSession(null)
+    return { session: null, expired: true }
+  }
+
+  const lastVerifiedAt = readAuthSessionLastVerified()
+  if (lastVerifiedAt && Date.now() - lastVerifiedAt < SESSION_REVERIFY_MS) {
+    return { session: toPublicSession(session), expired: false }
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/auth/verify`, {
       method: 'GET',
@@ -270,34 +317,40 @@ async function validateAuthSession(): Promise<{
       }
     })
 
+    if (res.status === 401) {
+      writeAuthSession(null)
+      return { session: null, expired: true }
+    }
+
     if (!res.ok) {
+      // Rate limit / erreur serveur : garder la session si le JWT est encore valide
+      if (!tokenExp || Date.now() < tokenExp) {
+        return { session: toPublicSession(session), expired: false }
+      }
       writeAuthSession(null)
       return { session: null, expired: true }
     }
 
     const data = await parseApiResponse(res)
-    const user = data.user as AuthUser | undefined
+    const user = data.user as ApiUser | undefined
     const refreshed: AuthSession = user
       ? {
           token: session.token,
-          user: {
-            id: String(user.id ?? session.user.id),
-            email: user.email ?? session.user.email,
-            username: user.username ?? session.user.username,
-            createdAt: user.createdAt ?? session.user.createdAt
-          }
+          user: mapApiUser(user, session.user) as AuthUser
         }
       : session
 
-    if (user) writeAuthSession(refreshed)
+    writeAuthSession(refreshed)
     return { session: toPublicSession(refreshed), expired: false }
   } catch {
-    const lastVerifiedAt = readAuthSessionLastVerified()
-    if (lastVerifiedAt && Date.now() - lastVerifiedAt > MAX_OFFLINE_MS) {
-      writeAuthSession(null)
-      return { session: null, expired: true }
+    if (tokenExp && Date.now() < tokenExp) {
+      return { session: toPublicSession(session), expired: false }
     }
-    return { session: toPublicSession(session), expired: false }
+    if (lastVerifiedAt && Date.now() - lastVerifiedAt < MAX_OFFLINE_MS) {
+      return { session: toPublicSession(session), expired: false }
+    }
+    writeAuthSession(null)
+    return { session: null, expired: true }
   }
 }
 
@@ -344,7 +397,7 @@ async function authRequest(path: string, body?: Record<string, string>): Promise
   }
 
   const token = data.token as string | undefined
-  const user = data.user as AuthUser | undefined
+  const user = mapApiUser(data.user as ApiUser | undefined)
   if (!token || !user?.username) {
     throw new Error('Réponse serveur invalide')
   }
@@ -424,6 +477,53 @@ ipcMain.handle('auth-logout', (event) => {
   syncAuthToGame(null)
   return { ok: true }
 })
+
+ipcMain.handle(
+  'auth-update-profile',
+  async (
+    event,
+    { profilePicture, username }: { profilePicture?: string | null; username?: string }
+  ) => {
+    assertTrustedSender(event)
+
+    const session = readAuthSession()
+    if (!session) {
+      throw new Error('Vous devez être connecté')
+    }
+
+    const body: Record<string, unknown> = {}
+    if (profilePicture !== undefined) body.profilePicture = profilePicture
+    if (username !== undefined) body.username = username
+
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${session.token}`,
+        'User-Agent': 'Platform-Master-Launcher'
+      },
+      body: JSON.stringify(body)
+    })
+
+    const data = await parseApiResponse(res)
+    if (!res.ok) {
+      if (res.status === 401) {
+        writeAuthSession(null)
+        syncAuthToGame(null)
+      }
+      throw new Error(String(data.error || `Erreur ${res.status}`))
+    }
+
+    const updated: AuthSession = {
+      token: session.token,
+      user: mapApiUser(data.user as ApiUser | undefined, session.user) as AuthUser
+    }
+    writeAuthSession(updated)
+    syncAuthToGame(updated)
+    return toPublicSession(updated)
+  }
+)
 
 ipcMain.handle(
   'api-request',
