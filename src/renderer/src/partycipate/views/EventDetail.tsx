@@ -19,6 +19,7 @@ import {
   getEventStatusBadgeClass,
   getEventStatusLabel
 } from '../utils/eventStatus'
+import { canManageEvent, fetchMyProductions } from '../utils/productions'
 
 interface EventDetailProps {
   eventId: number
@@ -39,7 +40,8 @@ export default function EventDetail({
   const [participants, setParticipants] = useState<Participation[]>([])
   const [votesCount, setVotesCount] = useState(0)
   const [isParticipated, setIsParticipated] = useState(false)
-  const [isYours, setIsYours] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
+  const [canDraw, setCanDraw] = useState(false)
   const [loading, setLoading] = useState(true)
   const [drawing, setDrawing] = useState(false)
   const { showToast, ToastComponent } = useToast()
@@ -49,9 +51,16 @@ export default function EventDetail({
   }, [eventId, session?.user.id])
 
   useEffect(() => {
-    if (session?.user.id && event?.user_id) {
-      setIsYours(session.user.id === String(event.user_id))
+    if (!session?.user.id || !event) {
+      setCanEdit(false)
+      setCanDraw(false)
+      return
     }
+    void (async () => {
+      const myProductions = await fetchMyProductions()
+      setCanEdit(canManageEvent(myProductions, event, session.user.id, 'can_edit_events'))
+      setCanDraw(canManageEvent(myProductions, event, session.user.id, 'can_draw'))
+    })()
   }, [event, session])
 
   async function loadAll(): Promise<void> {
@@ -253,7 +262,7 @@ export default function EventDetail({
         <p className="pc-detail-desc">{event.long_description || event.description}</p>
 
         <div className="pc-detail-actions">
-          {isYours ? (
+          {canEdit ? (
             <>
               <button
                 type="button"
@@ -269,7 +278,7 @@ export default function EventDetail({
                   {event.is_open ? 'Fermer inscriptions' : 'Ouvrir inscriptions'}
                 </button>
               )}
-              {!event.draw_done && participants.length > 0 && (
+              {!event.draw_done && participants.length > 0 && canDraw && (
                 <button
                   type="button"
                   className="pc-btn pc-btn-ghost"
@@ -308,13 +317,13 @@ export default function EventDetail({
         </div>
       </div>
 
-      {(isYours || participants.length > 0) && (
+      {(canEdit || participants.length > 0) && (
         <div className="pc-participants-card">
           <div className="pc-participants-header">
             <h3>
               {event.draw_done ? 'Résultats du tirage' : 'Participants'} ({participants.length})
             </h3>
-            {isYours && !event.draw_done && (
+            {canEdit && !event.draw_done && (
               <p className="pc-participants-hint">
                 Gérez les inscriptions et lancez le tirage quand vous êtes prêt.
               </p>

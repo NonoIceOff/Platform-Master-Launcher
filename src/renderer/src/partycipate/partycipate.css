@@ -243,6 +243,12 @@
   color: var(--color-text-main);
 }
 
+.pc-icon-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
 .pc-search {
   display: flex;
   align-items: center;
@@ -269,6 +275,223 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.pc-prod-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.pc-prod-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pc-prod-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 2px;
+}
+.pc-prod-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--color-text-main);
+}
+.pc-prod-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+.pc-prod-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+/* ─── Productions : liste & gestion d'équipe ─── */
+.pc-prod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pc-prod-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+.pc-prod-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  flex-shrink: 0;
+}
+.pc-prod-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.pc-prod-card-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+.pc-prod-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pc-prod-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.pc-prod-tag-chef {
+  background: rgba(234, 179, 8, 0.14);
+  border-color: rgba(234, 179, 8, 0.3);
+  color: #facc15;
+}
+
+.pc-prod-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.pc-prod-add input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  color: var(--color-text-main);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.pc-prod-add input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.pc-invite-box {
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.pc-invite-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+.pc-invite-hint {
+  margin: 6px 0 12px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+.pc-invite-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pc-invite-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  color: var(--color-text-main);
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+}
+
+.pc-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pc-member-card {
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+.pc-member-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pc-member-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+.pc-member-perms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+.pc-perm-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.pc-perm-toggle input {
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+.pc-perm-toggle input:disabled {
+  cursor: not-allowed;
 }
 
 .pc-event-card {
@@ -478,6 +701,37 @@
   align-items: center;
   gap: 4px;
 }
+.pc-event-participants {
+  gap: 6px;
+}
+.pc-avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.pc-avatar-stack-item {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  margin-left: -6px;
+  border: 1.5px solid var(--bg-card);
+  background: rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.pc-avatar-stack-item:first-child {
+  margin-left: 0;
+}
+.pc-avatar-stack-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .pc-count {
   font-size: 11px;
@@ -618,7 +872,8 @@
 }
 
 .pc-form input,
-.pc-form textarea {
+.pc-form textarea,
+.pc-form select {
   padding: 10px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
@@ -629,8 +884,18 @@
   outline: none;
 }
 
+.pc-form select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b9e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
 .pc-form input:focus,
-.pc-form textarea:focus {
+.pc-form textarea:focus,
+.pc-form select:focus {
   border-color: rgba(99, 102, 241, 0.5);
 }
 

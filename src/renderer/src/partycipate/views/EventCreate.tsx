@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
 import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react'
-import { apiDelete, apiFetch } from '../api'
+import { apiDelete, apiFetch, apiGet } from '../api'
 import { useToast } from '../components/Toast'
-import type { PartycipateSession, PartycipateView } from '../types'
+import type { PartycipateSession, PartycipateView, Production } from '../types'
 
 interface EventCreateProps {
   session: PartycipateSession | null
@@ -27,16 +27,37 @@ export default function EventCreate({
     image_url: '',
     starts_at: '',
     is_open: true,
-    max_candidates: 1
+    max_candidates: 1,
+    production_id: ''
   })
   const [loading, setLoading] = useState(false)
   const [drawDone, setDrawDone] = useState(false)
+  const [productions, setProductions] = useState<Production[]>([])
+  const [productionsReady, setProductionsReady] = useState(false)
   const { showToast, ToastComponent } = useToast()
 
   useEffect(() => {
     if (!sessionReady) return
     if (!session) onNavigate({ type: 'auth-required' })
   }, [session, sessionReady, onNavigate])
+
+  useEffect(() => {
+    if (!session) return
+    void (async () => {
+      try {
+        const list = await apiGet<Production[]>('/productions/mine')
+        const arr = (Array.isArray(list) ? list : []).filter((p) => p.can_create_events)
+        setProductions(arr)
+        if (arr.length === 1) {
+          setForm((p) => ({ ...p, production_id: p.production_id || arr[0].id }))
+        }
+      } catch {
+        setProductions([])
+      } finally {
+        setProductionsReady(true)
+      }
+    })()
+  }, [session])
 
   useEffect(() => {
     if (!eventId) return
@@ -54,7 +75,8 @@ export default function EventCreate({
           image_url: data.image_url ?? '',
           starts_at: data.starts_at ? data.starts_at.slice(0, 16) : '',
           is_open: !!data.is_open,
-          max_candidates: data.max_candidates ?? 1
+          max_candidates: data.max_candidates ?? 1,
+          production_id: data.production_id ?? ''
         })
       } catch {
         showToast("Impossible de charger l'événement", 'error')
@@ -66,6 +88,9 @@ export default function EventCreate({
     e.preventDefault()
     if (!session) return onNavigate({ type: 'auth-required' })
     if (!form.name.trim()) return showToast("Le nom de l'événement est requis.", 'error')
+    if (!isEdit && !form.production_id) {
+      return showToast('Veuillez choisir une production.', 'error')
+    }
 
     setLoading(true)
     try {
@@ -73,7 +98,8 @@ export default function EventCreate({
         ...form,
         max_candidates: Math.max(1, Number(form.max_candidates) || 1),
         starts_at: form.starts_at || undefined,
-        image_url: form.image_url || undefined
+        image_url: form.image_url || undefined,
+        production_id: form.production_id || undefined
       }
       const res = await apiFetch(isEdit ? `/events/${eventId}` : '/events/', {
         method: isEdit ? 'PATCH' : 'POST',
@@ -115,6 +141,30 @@ export default function EventCreate({
     }
   }
 
+  if (!isEdit && productionsReady && productions.length === 0) {
+    return (
+      <div className="pc-view">
+        <div className="pc-detail-header">
+          <button type="button" className="pc-icon-btn" onClick={onBack}>
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <p className="pc-view-kicker">Nouveau</p>
+            <h2 className="pc-view-title">Créer un événement</h2>
+          </div>
+        </div>
+        <div className="pc-empty">
+          <p className="pc-empty-title">Création non autorisée</p>
+          <p className="pc-empty-sub">
+            Vous n&apos;avez la permission de créer des événements dans aucune production.
+            Demandez à un chef de production de vous accorder ce droit.
+          </p>
+        </div>
+        {ToastComponent}
+      </div>
+    )
+  }
+
   return (
     <div className="pc-view">
       <div className="pc-detail-header">
@@ -130,6 +180,26 @@ export default function EventCreate({
       </div>
 
       <form onSubmit={handleSubmit} className="pc-form">
+        {!isEdit && productions.length > 0 && (
+          <label>
+            Production *
+            <select
+              name="production_id"
+              value={form.production_id}
+              onChange={(e) => setForm((p) => ({ ...p, production_id: e.target.value }))}
+            >
+              <option value="" disabled>
+                Choisir une production…
+              </option>
+              {productions.map((prod) => (
+                <option key={prod.id} value={prod.id}>
+                  {prod.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <label>
           Nom de l&apos;événement *
           <input

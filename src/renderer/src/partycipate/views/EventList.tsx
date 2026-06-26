@@ -101,6 +101,22 @@ export default function EventList({
     return list
   }, [events, filter, searchQuery, session, registeredIds])
 
+  const NO_PRODUCTION = 'Sans production'
+  const groupedEvents = useMemo(() => {
+    const groups = new Map<string, Event[]>()
+    for (const ev of filteredEvents) {
+      const key = ev.production_name?.trim() || NO_PRODUCTION
+      const arr = groups.get(key)
+      if (arr) arr.push(ev)
+      else groups.set(key, [ev])
+    }
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      if (a === NO_PRODUCTION) return 1
+      if (b === NO_PRODUCTION) return -1
+      return a.localeCompare(b, 'fr')
+    })
+  }, [filteredEvents])
+
   const filters: { id: EventFilter; label: string; needsAuth?: boolean }[] = [
     { id: 'all', label: 'Tous' },
     { id: 'open', label: 'Ouverts' },
@@ -168,16 +184,26 @@ export default function EventList({
           </p>
         </div>
       ) : (
-        <div className="pc-event-list">
-          {filteredEvents.map((ev) => (
-            <EventCard
-              key={ev.id}
-              event={ev}
-              isMine={session?.user.id === String(ev.user_id)}
-              isRegistered={registeredIds.has(ev.id)}
-              isWinner={winnerIds.has(ev.id)}
-              onClick={(id) => onNavigate({ type: 'event', id })}
-            />
+        <div className="pc-prod-sections">
+          {groupedEvents.map(([productionName, prodEvents]) => (
+            <section key={productionName} className="pc-prod-section">
+              <header className="pc-prod-header">
+                <h3 className="pc-prod-title">{productionName}</h3>
+                <span className="pc-prod-count">{prodEvents.length}</span>
+              </header>
+              <div className="pc-event-list">
+                {prodEvents.map((ev) => (
+                  <EventCard
+                    key={ev.id}
+                    event={ev}
+                    isMine={session?.user.id === String(ev.user_id)}
+                    isRegistered={registeredIds.has(ev.id)}
+                    isWinner={winnerIds.has(ev.id)}
+                    onClick={(id) => onNavigate({ type: 'event', id })}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

@@ -1,19 +1,22 @@
 import { useState, useEffect, useMemo, type ReactElement } from 'react'
-import { LayoutDashboard, PlusCircle } from 'lucide-react'
+import { Building2, LayoutDashboard, PlusCircle } from 'lucide-react'
 import type { PartycipateSession, PartycipateView } from './types'
 import EventList from './views/EventList'
 import EventDetail from './views/EventDetail'
 import EventCreate from './views/EventCreate'
 import Gestion from './views/Gestion'
+import Productions from './views/Productions'
+import ProductionMembers from './views/ProductionMembers'
 import AuthRequired from './views/AuthRequired'
 import './partycipate.css'
 
 const NAV_ITEMS = [
   { id: 'home' as const, label: 'Événements', icon: null },
-  { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard }
+  { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard },
+  { id: 'productions' as const, label: 'Ma production', icon: Building2 }
 ]
 
-type TabId = 'home' | 'dashboard'
+type TabId = 'home' | 'dashboard' | 'productions'
 
 interface PartycipateProps {
   session: PartycipateSession | null
@@ -24,6 +27,7 @@ interface PartycipateProps {
 
 function tabFromView(view: PartycipateView): TabId {
   if (view.type === 'dashboard') return 'dashboard'
+  if (view.type === 'productions') return 'productions'
   return 'home'
 }
 
@@ -46,6 +50,7 @@ export default function Partycipate({
     if (view.type === 'event' || view.type === 'create' || view.type === 'modify') {
       return returnTab
     }
+    if (view.type === 'production') return 'productions'
     if (view.type === 'auth-required') return 'home'
     return tabFromView(view)
   }, [view, returnTab])
@@ -56,7 +61,7 @@ export default function Partycipate({
   }
 
   function navigateFromTab(tab: TabId, next: PartycipateView): void {
-    if (next.type === 'home' || next.type === 'dashboard') {
+    if (next.type === 'home' || next.type === 'dashboard' || next.type === 'productions') {
       goToTab(next.type)
       return
     }
@@ -159,6 +164,16 @@ export default function Partycipate({
             sessionReady={sessionReady}
             onNavigate={(next) => navigateFromTab('dashboard', next)}
           />
+        )}
+        {view.type === 'productions' && (
+          <Productions
+            session={session}
+            sessionReady={sessionReady}
+            onNavigate={(next) => navigateFromTab('productions', next)}
+          />
+        )}
+        {view.type === 'production' && (
+          <ProductionMembers productionId={view.id} onBack={() => setView({ type: 'productions' })} />
         )}
         {view.type === 'auth-required' && (
           <AuthRequired

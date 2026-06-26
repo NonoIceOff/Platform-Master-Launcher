@@ -73,7 +73,7 @@ export default function EventCard({
               {(event.creator_username ?? '?')[0].toUpperCase()}
             </div>
           )}
-          <span>{event.creator_username ?? 'Inconnu'}</span>
+          <span>Par {event.creator_username ?? 'Inconnu'}</span>
         </div>
 
         <p className="pc-event-desc">{event.description || 'Aucune description'}</p>
@@ -84,8 +84,26 @@ export default function EventCard({
             {formatDate(dateStr)}
             {formatTime(dateStr) && ` ${formatTime(dateStr)}`}
           </span>
-          <span>
-            <Users size={12} />
+          <span className="pc-event-participants">
+            {event.participants && event.participants.length > 0 ? (
+              <span className="pc-avatar-stack">
+                {event.participants.map((p, i) => (
+                  <span
+                    key={`${p.user_id}-${i}`}
+                    className="pc-avatar-stack-item"
+                    title={p.username ?? undefined}
+                  >
+                    {p.profile_picture ? (
+                      <img src={p.profile_picture} alt="" />
+                    ) : (
+                      (p.username ?? '?')[0].toUpperCase()
+                    )}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <Users size={12} />
+            )}
             {event.participants_count ?? 0}
           </span>
           <span>

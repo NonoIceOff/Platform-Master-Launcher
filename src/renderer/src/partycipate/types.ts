@@ -8,6 +8,37 @@ export interface User {
   updated_at?: string
 }
 
+export interface Production {
+  id: string
+  name: string
+  created_at?: string
+  is_chef?: boolean
+  can_create_events?: boolean
+  can_edit_events?: boolean
+  can_draw?: boolean
+  can_invite?: boolean
+}
+
+export interface ProductionMember {
+  id: string
+  username: string | null
+  profile_picture: string | null
+  is_chef: boolean
+  can_create_events: boolean
+  can_edit_events: boolean
+  can_draw: boolean
+  can_invite: boolean
+}
+
+export interface ProductionInvite {
+  token: string
+  production_id: string
+  created_by?: string | null
+  uses: number
+  revoked?: boolean
+  created_at?: string
+}
+
 export interface Event {
   id: number
   name: string
@@ -16,6 +47,8 @@ export interface Event {
   image_url?: string | null
   is_open: boolean
   user_id: string
+  production_id?: string | null
+  production_name?: string | null
   creator_username?: string
   profile_picture?: string | null
   starts_at?: string
@@ -25,6 +58,13 @@ export interface Event {
   votes_count?: number
   participants_count?: number
   selected_count?: number
+  participants?: ParticipantPreview[]
+}
+
+export interface ParticipantPreview {
+  user_id: string
+  username?: string | null
+  profile_picture?: string | null
 }
 
 export interface Participation {
@@ -59,6 +99,8 @@ export type PartycipateView =
   | { type: 'create' }
   | { type: 'modify'; id: number }
   | { type: 'dashboard' }
+  | { type: 'productions' }
+  | { type: 'production'; id: string }
   | { type: 'messages' }
   | { type: 'profile' }
   | { type: 'auth-required' }
