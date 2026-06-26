@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef, useCallback, type ReactElement } from 'react'
-import { Hash, Megaphone, Lock, Send, Loader2, MessagesSquare } from 'lucide-react'
-import { apiGet, apiPost } from '../partycipate/api'
+import {
+  Hash,
+  Megaphone,
+  Lock,
+  Send,
+  Loader2,
+  MessagesSquare,
+  Shield,
+  User,
+  Star,
+  Settings,
+  X,
+  Trash2
+} from 'lucide-react'
+import { apiGet, apiPost, apiPatch, apiDelete } from '../partycipate/api'
 import './Discord.css'
 
 interface ChannelMeta {
@@ -17,8 +30,35 @@ interface ChannelMessage {
   user_id: string
   username: string
   profile_picture: string | null
+  role?: Role
   content: string
   created_at: string
+}
+
+type Role = 'admin' | 'producteur' | 'member'
+
+interface Member {
+  id: string
+  username: string
+  profile_picture: string | null
+  role: Role
+  isSuperAdmin: boolean
+}
+
+const ROLE_LABELS: Record<Role, string> = {
+  admin: 'Admin',
+  producteur: 'Producteur',
+  member: 'Simple Membre'
+}
+
+function RoleBadge({ role }: { role: Role }): ReactElement {
+  const Icon = role === 'admin' ? Shield : role === 'producteur' ? Star : User
+  return (
+    <span className={`discord-role ${role}`}>
+      <Icon size={12} />
+      {ROLE_LABELS[role]}
+    </span>
+  )
 }
 
 interface DiscordProps {
@@ -53,12 +93,20 @@ function formatTime(iso: string): string {
 
 export default function Discord({ session, onRequireLogin }: DiscordProps): ReactElement {
   const [channels, setChannels] = useState<ChannelMeta[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [myRole, setMyRole] = useState<Role>('member')
   const [activeChannel, setActiveChannel] = useState<string>('general')
   const [messages, setMessages] = useState<ChannelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+
+  const [showRoles, setShowRoles] = useState(false)
+  const [members, setMembers] = useState<Member[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [membersError, setMembersError] = useState('')
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   const lastIdRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -77,10 +125,12 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
   useEffect(() => {
     if (!session) return
     let cancelled = false
-    apiGet<{ channels: ChannelMeta[] }>('/channels')
+    apiGet<{ channels: ChannelMeta[]; isAdmin: boolean; role: Role }>('/channels')
       .then((data) => {
         if (cancelled) return
         setChannels(data.channels)
+        setIsAdmin(Boolean(data.isAdmin))
+        setMyRole(data.role || 'member')
         if (data.channels.length && !data.channels.some((c) => c.id === activeChannelRef.current)) {
           setActiveChannel(data.channels[0].id)
         }
@@ -172,6 +222,50 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
     }
   }
 
+  const deleteMessage = useCallback(async (id: number) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+    try {
+      await apiDelete(`/channels/${activeChannelRef.current}/messages/${id}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+
+  const openRoles = useCallback(async () => {
+    setShowRoles(true)
+    setMembersLoading(true)
+    setMembersError('')
+    try {
+      const data = await apiGet<{ members: Member[] }>('/channels/members')
+      setMembers(data.members)
+    } catch (e) {
+      setMembersError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setMembersLoading(false)
+    }
+  }, [])
+
+  const changeRole = useCallback(
+    async (member: Member, role: Role) => {
+      if (member.isSuperAdmin || savingId || member.role === role) return
+      setSavingId(member.id)
+      setMembersError('')
+      try {
+        const data = await apiPatch<{ member: Member }>(`/channels/members/${member.id}`, { role })
+        setMembers((prev) => prev.map((m) => (m.id === data.member.id ? data.member : m)))
+        if (data.member.id === session?.user.id) {
+          setIsAdmin(data.member.role === 'admin')
+          setMyRole(data.member.role)
+        }
+      } catch (e) {
+        setMembersError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setSavingId(null)
+      }
+    },
+    [savingId, session]
+  )
+
   if (!session) {
     return (
       <div className="discord-locked">
@@ -194,7 +288,19 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
   return (
     <div className="discord-view">
       <aside className="discord-sidebar">
-        <div className="discord-channels-label">CHANNELS TEXTUELS</div>
+        <div className="discord-channels-head">
+          <span className="discord-channels-label">CHANNELS TEXTUELS</span>
+          {isAdmin && (
+            <button
+              type="button"
+              className="discord-gear"
+              title="Gérer les rôles"
+              onClick={() => void openRoles()}
+            >
+              <Settings size={15} />
+            </button>
+          )}
+        </div>
         <ul className="discord-channel-list">
           {channels.map((c) => (
             <li key={c.id}>
@@ -214,6 +320,20 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
             </li>
           ))}
         </ul>
+
+        <div className="discord-userbar">
+          <span className="discord-userbar-avatar">
+            {session.user.profilePicture ? (
+              <img src={session.user.profilePicture} alt="" />
+            ) : (
+              session.user.username.slice(0, 2).toUpperCase()
+            )}
+          </span>
+          <div className="discord-userbar-info">
+            <span className={`discord-userbar-name role-${myRole}`}>{session.user.username}</span>
+            <RoleBadge role={myRole} />
+          </div>
+        </div>
       </aside>
 
       <section className="discord-main">
@@ -245,7 +365,6 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
               prev &&
               prev.user_id === m.user_id &&
               new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000
-            const mine = m.user_id === session.user.id
             return (
               <div key={m.id} className={`discord-msg ${grouped ? 'grouped' : ''}`}>
                 {!grouped ? (
@@ -262,7 +381,8 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
                 <div className="discord-msg-body">
                   {!grouped && (
                     <div className="discord-msg-head">
-                      <span className={`discord-msg-author ${mine ? 'mine' : ''}`}>
+                      <RoleBadge role={m.role || 'member'} />
+                      <span className={`discord-msg-author role-${m.role || 'member'}`}>
                         {m.username}
                       </span>
                       <span className="discord-msg-time">{formatTime(m.created_at)}</span>
@@ -270,6 +390,16 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
                   )}
                   <div className="discord-msg-content">{m.content}</div>
                 </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="discord-msg-delete"
+                    title="Supprimer le message"
+                    onClick={() => void deleteMessage(m.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             )
           })}
@@ -311,6 +441,72 @@ export default function Discord({ session, onRequireLogin }: DiscordProps): Reac
           )}
         </div>
       </section>
+
+      {showRoles && (
+        <div className="discord-modal-overlay" onClick={() => setShowRoles(false)}>
+          <div className="discord-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="discord-modal-head">
+              <div className="discord-modal-title">
+                <Shield size={18} />
+                <span>Gestion des rôles</span>
+              </div>
+              <button
+                type="button"
+                className="discord-modal-close"
+                onClick={() => setShowRoles(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {membersError && <div className="discord-error">{membersError}</div>}
+
+            <div className="discord-members">
+              {membersLoading && <div className="discord-state">Chargement des membres…</div>}
+              {!membersLoading &&
+                members.map((m) => (
+                  <div key={m.id} className="discord-member">
+                    <span className="discord-member-avatar">
+                      {m.profile_picture ? (
+                        <img src={m.profile_picture} alt="" />
+                      ) : (
+                        m.username.slice(0, 2).toUpperCase()
+                      )}
+                    </span>
+                    <div className="discord-member-info">
+                      <span className={`discord-member-name role-${m.role}`}>
+                        {m.username}
+                        {m.isSuperAdmin && <span className="discord-superadmin-tag">super-admin</span>}
+                      </span>
+                      <RoleBadge role={m.role} />
+                    </div>
+                    {m.isSuperAdmin ? (
+                      <span className="discord-member-locked">
+                        <Lock size={14} />
+                      </span>
+                    ) : (
+                      <div className="discord-role-select-wrap">
+                        {savingId === m.id && (
+                          <Loader2 size={14} className="discord-spin discord-role-saving" />
+                        )}
+                        <select
+                          className="discord-role-select"
+                          value={m.role}
+                          disabled={savingId === m.id}
+                          onChange={(e) => void changeRole(m, e.target.value as Role)}
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="producteur">Producteur</option>
+                          <option value="member">Membre</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

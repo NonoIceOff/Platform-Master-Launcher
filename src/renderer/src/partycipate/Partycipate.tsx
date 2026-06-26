@@ -1,21 +1,19 @@
 import { useState, useEffect, useMemo, type ReactElement } from 'react'
-import { LayoutDashboard, PlusCircle, User } from 'lucide-react'
+import { LayoutDashboard, PlusCircle } from 'lucide-react'
 import type { PartycipateSession, PartycipateView } from './types'
 import EventList from './views/EventList'
 import EventDetail from './views/EventDetail'
 import EventCreate from './views/EventCreate'
 import Gestion from './views/Gestion'
-import Profile from './views/Profile'
 import AuthRequired from './views/AuthRequired'
 import './partycipate.css'
 
 const NAV_ITEMS = [
   { id: 'home' as const, label: 'Événements', icon: null },
-  { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard },
-  { id: 'profile' as const, label: 'Profil', icon: User }
+  { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard }
 ]
 
-type TabId = 'home' | 'dashboard' | 'profile'
+type TabId = 'home' | 'dashboard'
 
 interface PartycipateProps {
   session: PartycipateSession | null
@@ -26,7 +24,6 @@ interface PartycipateProps {
 
 function tabFromView(view: PartycipateView): TabId {
   if (view.type === 'dashboard') return 'dashboard'
-  if (view.type === 'profile') return 'profile'
   return 'home'
 }
 
@@ -59,7 +56,7 @@ export default function Partycipate({
   }
 
   function navigateFromTab(tab: TabId, next: PartycipateView): void {
-    if (next.type === 'home' || next.type === 'dashboard' || next.type === 'profile') {
+    if (next.type === 'home' || next.type === 'dashboard') {
       goToTab(next.type)
       return
     }
@@ -161,13 +158,6 @@ export default function Partycipate({
             session={session}
             sessionReady={sessionReady}
             onNavigate={(next) => navigateFromTab('dashboard', next)}
-          />
-        )}
-        {view.type === 'profile' && (
-          <Profile
-            session={session}
-            sessionReady={sessionReady}
-            onNavigate={(next) => navigateFromTab('profile', next)}
           />
         )}
         {view.type === 'auth-required' && (

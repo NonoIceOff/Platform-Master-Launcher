@@ -16,7 +16,7 @@ export default function AuthRequired({
     return (
       <div className="pc-view pc-auth-view">
         <div className="pc-auth-card">
-          <div className="pc-auth-logo">MN</div>
+          <div className="pc-auth-logo">M</div>
           <h2>Session expirée</h2>
           <p className="pc-auth-sub">
             Votre compte est connecté dans le launcher, mais Party-cipate n&apos;a pas pu
@@ -34,8 +34,8 @@ export default function AuthRequired({
   return (
     <div className="pc-view pc-auth-view">
       <div className="pc-auth-card">
-        <div className="pc-auth-logo">MN</div>
-        <h2>Compte M-Network requis</h2>
+        <div className="pc-auth-logo">M</div>
+        <h2>Compte Master requis</h2>
         <p className="pc-auth-sub">
           Party-cipate utilise le même compte que Platform Master. Connectez-vous dans
           l&apos;onglet Configuration.

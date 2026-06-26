@@ -58,6 +58,7 @@ export default function App(): ReactElement {
   const [authUsername, setAuthUsername] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [discordLoading, setDiscordLoading] = useState(false)
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false)
   const [appVersion, setAppVersion] = useState('')
 
@@ -186,6 +187,22 @@ export default function App(): ReactElement {
       setErrorMsg(formatLauncherError(err))
     } finally {
       setAuthLoading(false)
+    }
+  }
+
+  const handleDiscordLogin = async (): Promise<void> => {
+    setDiscordLoading(true)
+    setErrorMsg('')
+    try {
+      const result = await window.launcher.loginWithDiscord()
+      setSession(result)
+      setAuthPassword('')
+      setSessionExpiredNotice(false)
+    } catch (err: unknown) {
+      const msg = formatLauncherError(err)
+      if (!/annul/i.test(msg)) setErrorMsg(msg)
+    } finally {
+      setDiscordLoading(false)
     }
   }
 
@@ -478,7 +495,7 @@ export default function App(): ReactElement {
               <div className="tab-view animate-fade-in">
                 <div className="view-header">
                   <div>
-                    <h2 className="view-title">Compte M-Network</h2>
+                    <h2 className="view-title">Compte Master</h2>
                     <p className="view-subtitle">
                       Un seul compte pour Platform Master et Party-cipate.
                     </p>
@@ -602,12 +619,40 @@ export default function App(): ReactElement {
                           minLength={8}
                         />
                       </div>
-                      <button className="action-btn btn-install auth-submit" disabled={authLoading}>
+                      <button
+                        className="action-btn btn-install auth-submit"
+                        disabled={authLoading || discordLoading}
+                      >
                         {authLoading
                           ? 'PATIENTEZ...'
                           : authMode === 'login'
                             ? 'SE CONNECTER'
                             : 'CRÉER UN COMPTE'}
+                      </button>
+
+                      <div className="auth-divider">
+                        <span>ou</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-discord"
+                        onClick={handleDiscordLogin}
+                        disabled={authLoading || discordLoading}
+                      >
+                        <svg
+                          className="btn-discord-icon"
+                          viewBox="0 0 24 24"
+                          width="20"
+                          height="20"
+                          aria-hidden="true"
+                          fill="currentColor"
+                        >
+                          <path d="M20.317 4.369A19.79 19.79 0 0 0 16.558 3c-.18.325-.39.762-.535 1.107a18.27 18.27 0 0 0-5.043 0C10.835 3.762 10.62 3.325 10.44 3a19.74 19.74 0 0 0-3.76 1.369C2.36 9.046 1.5 13.61 1.86 18.116a19.95 19.95 0 0 0 6.073 3.058c.49-.668.927-1.378 1.304-2.124a12.9 12.9 0 0 1-2.052-.978c.172-.127.34-.26.502-.396 3.96 1.83 8.245 1.83 12.158 0 .164.137.332.27.502.396-.654.387-1.343.715-2.053.978.377.746.814 1.456 1.304 2.124a19.88 19.88 0 0 0 6.073-3.058c.42-5.227-.715-9.75-3.625-13.747ZM8.52 15.331c-1.182 0-2.157-1.086-2.157-2.42 0-1.333.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.334-.955 2.42-2.157 2.42Zm6.96 0c-1.182 0-2.157-1.086-2.157-2.42 0-1.333.955-2.42 2.157-2.42 1.21 0 2.176 1.096 2.157 2.42 0 1.334-.946 2.42-2.157 2.42Z" />
+                        </svg>
+                        <span>
+                          {discordLoading ? 'CONNEXION DISCORD...' : 'CONTINUER AVEC DISCORD'}
+                        </span>
                       </button>
                     </form>
                   </div>

@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('launcher', {
   register: (email: string, username: string, password: string) =>
     ipcRenderer.invoke('auth-register', { email, username, password }),
 
+  loginWithDiscord: () => ipcRenderer.invoke('auth-login-discord'),
+
   logout: () => ipcRenderer.invoke('auth-logout'),
 
   updateProfile: (payload: { profilePicture?: string | null; username?: string }) =>

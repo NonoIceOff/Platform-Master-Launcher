@@ -5,6 +5,7 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { ReadableStream } from 'node:stream/web'
 import { spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import 'dotenv/config'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
@@ -470,6 +471,107 @@ ipcMain.handle(
     return toPublicSession(session)
   }
 )
+
+interface DiscordConfig {
+  configured: boolean
+  clientId: string | null
+  redirectUri: string | null
+  scope: string
+}
+
+async function fetchDiscordConfig(): Promise<DiscordConfig> {
+  const res = await fetch(`${API_BASE}/api/auth/discord/config`, {
+    method: 'GET',
+    headers: { Accept: 'application/json', 'User-Agent': 'Platform-Master-Launcher' }
+  })
+  const data = (await parseApiResponse(res)) as unknown as DiscordConfig
+  return data
+}
+
+function awaitDiscordCode(authorizeUrl: string, redirectUri: string, state: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const popup = new BrowserWindow({
+      width: 520,
+      height: 760,
+      parent: mainWindow ?? undefined,
+      modal: Boolean(mainWindow),
+      autoHideMenuBar: true,
+      title: 'Connexion Discord',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true
+      }
+    })
+
+    let settled = false
+    const finish = (action: () => void): void => {
+      if (settled) return
+      settled = true
+      action()
+      if (!popup.isDestroyed()) popup.close()
+    }
+
+    const handleNav = (event: Electron.Event, url: string): void => {
+      if (!url.startsWith(redirectUri)) return
+      event.preventDefault()
+      try {
+        const parsed = new URL(url)
+        const err = parsed.searchParams.get('error')
+        const returnedState = parsed.searchParams.get('state')
+        const code = parsed.searchParams.get('code')
+        if (err) return finish(() => reject(new Error('Autorisation Discord refusée')))
+        if (returnedState !== state) return finish(() => reject(new Error('État OAuth invalide')))
+        if (!code) return finish(() => reject(new Error('Code Discord manquant')))
+        finish(() => resolve(code))
+      } catch {
+        finish(() => reject(new Error('Réponse Discord invalide')))
+      }
+    }
+
+    popup.webContents.on('will-redirect', handleNav)
+    popup.webContents.on('will-navigate', handleNav)
+    popup.on('closed', () => {
+      if (!settled) {
+        settled = true
+        reject(new Error('Connexion Discord annulée'))
+      }
+    })
+
+    void popup.loadURL(authorizeUrl)
+  })
+}
+
+ipcMain.handle('auth-login-discord', async (event) => {
+  assertTrustedSender(event)
+
+  const cfg = await fetchDiscordConfig()
+  if (!cfg.configured || !cfg.clientId || !cfg.redirectUri) {
+    throw new Error('La connexion Discord n’est pas encore configurée sur le serveur.')
+  }
+
+  const state = randomBytes(16).toString('hex')
+  const authorizeUrl =
+    'https://discord.com/oauth2/authorize?' +
+    new URLSearchParams({
+      client_id: cfg.clientId,
+      redirect_uri: cfg.redirectUri,
+      response_type: 'code',
+      scope: cfg.scope || 'identify email',
+      state,
+      prompt: 'consent'
+    }).toString()
+
+  const code = await awaitDiscordCode(authorizeUrl, cfg.redirectUri, state)
+
+  const session = await authRequest('/api/auth/login/discord', {
+    code,
+    redirectUri: cfg.redirectUri
+  })
+  writeAuthSession(session)
+  syncAuthToGame(session)
+  return toPublicSession(session)
+})
 
 ipcMain.handle('auth-logout', (event) => {
   assertTrustedSender(event)

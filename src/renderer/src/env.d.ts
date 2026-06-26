@@ -37,6 +37,7 @@ declare global {
       validateSession: () => Promise<{ session: PublicSession | null; expired: boolean }>
       login: (email: string, password: string) => Promise<PublicSession>
       register: (email: string, username: string, password: string) => Promise<PublicSession>
+      loginWithDiscord: () => Promise<PublicSession>
       logout: () => Promise<{ ok: boolean }>
       updateProfile: (payload: {
         profilePicture?: string | null
