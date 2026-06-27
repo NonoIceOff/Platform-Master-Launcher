@@ -98,6 +98,7 @@ export interface Conversation {
 export type PartycipateView =
   | { type: 'home' }
   | { type: 'event'; id: number }
+  | { type: 'candidates'; id: number }
   | { type: 'create' }
   | { type: 'modify'; id: number }
   | { type: 'dashboard' }

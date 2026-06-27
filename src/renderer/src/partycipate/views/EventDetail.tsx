@@ -7,6 +7,7 @@ import {
   Heart,
   Lock,
   LockOpen,
+  Settings2,
   Shuffle,
   Trash2,
   Trophy,
@@ -409,7 +410,11 @@ export default function EventDetail({
                   className={`pc-participant-row ${p.is_selected ? 'pc-participant-winner' : ''}`}
                 >
                   <div className="pc-participant-avatar">
-                    {(p.username ?? '?').slice(0, 2).toUpperCase()}
+                    {p.profile_picture ? (
+                      <img src={p.profile_picture} alt="" />
+                    ) : (
+                      (p.username ?? '?').slice(0, 2).toUpperCase()
+                    )}
                   </div>
                   <span className="pc-participant-name">{p.username ?? 'Utilisateur'}</span>
                   {p.is_selected && (
@@ -427,6 +432,19 @@ export default function EventDetail({
             <p className="pc-participants-hint">
               {winners.length} gagnant(s) tiré(s) sur {maxCandidates} place(s) prévue(s).
             </p>
+          )}
+
+          {canEdit && (
+            <div className="pc-participants-footer">
+              <button
+                type="button"
+                className="pc-btn pc-btn-primary"
+                onClick={() => onNavigate({ type: 'candidates', id: event.id })}
+              >
+                <Settings2 size={16} />
+                Gérer les candidats
+              </button>
+            </div>
           )}
         </div>
       )}

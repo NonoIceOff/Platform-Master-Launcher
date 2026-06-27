@@ -3,6 +3,7 @@ import { Building2, LayoutDashboard, PlusCircle } from 'lucide-react'
 import type { PartycipateSession, PartycipateView } from './types'
 import EventList from './views/EventList'
 import EventDetail from './views/EventDetail'
+import Candidates from './views/Candidates'
 import EventCreate from './views/EventCreate'
 import Gestion from './views/Gestion'
 import Productions from './views/Productions'
@@ -47,7 +48,12 @@ export default function Partycipate({
   }, [session, view.type])
 
   const activeNav = useMemo((): TabId => {
-    if (view.type === 'event' || view.type === 'create' || view.type === 'modify') {
+    if (
+      view.type === 'event' ||
+      view.type === 'candidates' ||
+      view.type === 'create' ||
+      view.type === 'modify'
+    ) {
       return returnTab
     }
     if (view.type === 'production') return 'productions'
@@ -139,6 +145,13 @@ export default function Partycipate({
             onNavigate={(next) => navigateFromTab(returnTab, next)}
             onBack={goBack}
             onGoToLogin={onGoToLogin}
+          />
+        )}
+        {view.type === 'candidates' && (
+          <Candidates
+            eventId={view.id}
+            session={session}
+            onBack={() => setView({ type: 'event', id: view.id })}
           />
         )}
         {view.type === 'create' && (
