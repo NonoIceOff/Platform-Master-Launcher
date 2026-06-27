@@ -478,6 +478,20 @@
   color: var(--color-text-muted);
 }
 
+.pc-event-prod {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #c7d2fe;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
 .pc-followed-section {
   margin-top: 26px;
 }

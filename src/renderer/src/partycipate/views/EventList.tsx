@@ -5,6 +5,8 @@ import EventCard from '../components/EventCard'
 import { useToast } from '../components/Toast'
 import type { Event, PartycipateSession, PartycipateView } from '../types'
 import { getEventStatus } from '../utils/eventStatus'
+import { fetchMyProductions, fetchFollowedProductions } from '../utils/productions'
+import { sortByScore } from '../utils/feedScore'
 
 type EventFilter = 'all' | 'open' | 'mine' | 'registered'
 
@@ -29,6 +31,8 @@ export default function EventList({
   const [loaded, setLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<EventFilter>('all')
+  const [followedIds, setFollowedIds] = useState<Set<string>>(new Set())
+  const [memberIds, setMemberIds] = useState<Set<string>>(new Set())
   const { showToast, ToastComponent } = useToast()
 
   const registeredIds = useMemo(
@@ -57,8 +61,21 @@ export default function EventList({
         } catch {
           setMyParticipations([])
         }
+        try {
+          const [followed, mine] = await Promise.all([
+            fetchFollowedProductions(),
+            fetchMyProductions()
+          ])
+          setFollowedIds(new Set(followed.map((p) => p.id)))
+          setMemberIds(new Set(mine.map((p) => p.id)))
+        } catch {
+          setFollowedIds(new Set())
+          setMemberIds(new Set())
+        }
       } else {
         setMyParticipations([])
+        setFollowedIds(new Set())
+        setMemberIds(new Set())
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue'
@@ -101,21 +118,21 @@ export default function EventList({
     return list
   }, [events, filter, searchQuery, session, registeredIds])
 
-  const NO_PRODUCTION = 'Sans production'
-  const groupedEvents = useMemo(() => {
-    const groups = new Map<string, Event[]>()
-    for (const ev of filteredEvents) {
-      const key = ev.production_name?.trim() || NO_PRODUCTION
-      const arr = groups.get(key)
-      if (arr) arr.push(ev)
-      else groups.set(key, [ev])
+  // Sur "Tous" : tri par score de pertinence (abonnement, likes, récence…).
+  // Les autres filtres gardent un tri simple par date décroissante.
+  const displayedEvents = useMemo(() => {
+    if (filter === 'all') {
+      return sortByScore(filteredEvents, {
+        followedProductionIds: followedIds,
+        memberProductionIds: memberIds
+      })
     }
-    return Array.from(groups.entries()).sort(([a], [b]) => {
-      if (a === NO_PRODUCTION) return 1
-      if (b === NO_PRODUCTION) return -1
-      return a.localeCompare(b, 'fr')
+    return [...filteredEvents].sort((a, b) => {
+      const ta = new Date(a.created_date ?? a.starts_at ?? 0).getTime()
+      const tb = new Date(b.created_date ?? b.starts_at ?? 0).getTime()
+      return tb - ta
     })
-  }, [filteredEvents])
+  }, [filteredEvents, filter, followedIds, memberIds])
 
   const filters: { id: EventFilter; label: string; needsAuth?: boolean }[] = [
     { id: 'all', label: 'Tous' },
@@ -184,26 +201,16 @@ export default function EventList({
           </p>
         </div>
       ) : (
-        <div className="pc-prod-sections">
-          {groupedEvents.map(([productionName, prodEvents]) => (
-            <section key={productionName} className="pc-prod-section">
-              <header className="pc-prod-header">
-                <h3 className="pc-prod-title">{productionName}</h3>
-                <span className="pc-prod-count">{prodEvents.length}</span>
-              </header>
-              <div className="pc-event-list">
-                {prodEvents.map((ev) => (
-                  <EventCard
-                    key={ev.id}
-                    event={ev}
-                    isMine={session?.user.id === String(ev.user_id)}
-                    isRegistered={registeredIds.has(ev.id)}
-                    isWinner={winnerIds.has(ev.id)}
-                    onClick={(id) => onNavigate({ type: 'event', id })}
-                  />
-                ))}
-              </div>
-            </section>
+        <div className="pc-event-list">
+          {displayedEvents.map((ev) => (
+            <EventCard
+              key={ev.id}
+              event={ev}
+              isMine={session?.user.id === String(ev.user_id)}
+              isRegistered={registeredIds.has(ev.id)}
+              isWinner={winnerIds.has(ev.id)}
+              onClick={(id) => onNavigate({ type: 'event', id })}
+            />
           ))}
         </div>
       )}

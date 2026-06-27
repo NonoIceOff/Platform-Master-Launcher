@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Calendar, Heart, Trophy, Users } from 'lucide-react'
+import { Building2, Calendar, Heart, Trophy, Users } from 'lucide-react'
 import type { Event } from '../types'
 import {
   getEventStatusBadgeClass,
@@ -75,6 +75,13 @@ export default function EventCard({
           )}
           <span>Par {event.creator_username ?? 'Inconnu'}</span>
         </div>
+
+        {event.production_name && (
+          <span className="pc-event-prod">
+            <Building2 size={12} />
+            {event.production_name}
+          </span>
+        )}
 
         <p className="pc-event-desc">{event.description || 'Aucune description'}</p>
 
