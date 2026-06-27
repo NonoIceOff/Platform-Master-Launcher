@@ -6,7 +6,6 @@ import EventCard from '../components/EventCard'
 import {
   fetchProductionPublic,
   fetchFollowState,
-  fetchMyProductions,
   followProduction,
   unfollowProduction
 } from '../utils/productions'
@@ -57,8 +56,15 @@ export default function ProductionPublic({
       }
 
       if (session) {
-        const mine = await fetchMyProductions()
-        setIsChef(mine.some((p) => p.id === productionId && p.is_chef))
+        // is_chef renvoyé ici vaut aussi pour les admins (supervision).
+        try {
+          const m = await apiGet<{ is_chef?: boolean }>(
+            `/productions/${productionId}/members`
+          )
+          setIsChef(!!m.is_chef)
+        } catch {
+          setIsChef(false)
+        }
       }
     } catch {
       setProduction(null)
