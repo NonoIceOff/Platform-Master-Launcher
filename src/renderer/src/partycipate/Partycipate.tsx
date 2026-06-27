@@ -8,6 +8,7 @@ import EventCreate from './views/EventCreate'
 import Gestion from './views/Gestion'
 import Productions from './views/Productions'
 import ProductionMembers from './views/ProductionMembers'
+import ProductionPublic from './views/ProductionPublic'
 import AuthRequired from './views/AuthRequired'
 import './partycipate.css'
 
@@ -52,7 +53,8 @@ export default function Partycipate({
       view.type === 'event' ||
       view.type === 'candidates' ||
       view.type === 'create' ||
-      view.type === 'modify'
+      view.type === 'modify' ||
+      view.type === 'production-public'
     ) {
       return returnTab
     }
@@ -187,6 +189,15 @@ export default function Partycipate({
         )}
         {view.type === 'production' && (
           <ProductionMembers productionId={view.id} onBack={() => setView({ type: 'productions' })} />
+        )}
+        {view.type === 'production-public' && (
+          <ProductionPublic
+            productionId={view.id}
+            session={session}
+            onBack={goBack}
+            onNavigate={(next) => navigateFromTab(returnTab, next)}
+            onGoToLogin={onGoToLogin}
+          />
         )}
         {view.type === 'auth-required' && (
           <AuthRequired

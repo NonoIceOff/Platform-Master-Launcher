@@ -11,6 +11,9 @@ export interface User {
 export interface Production {
   id: string
   name: string
+  description?: string | null
+  avatar_url?: string | null
+  videos?: string[]
   created_at?: string
   is_chef?: boolean
   can_create_events?: boolean
@@ -18,6 +21,7 @@ export interface Production {
   can_draw?: boolean
   can_invite?: boolean
   followers_count?: number
+  members_count?: number
   is_following?: boolean
 }
 
@@ -51,6 +55,7 @@ export interface Event {
   user_id: string
   production_id?: string | null
   production_name?: string | null
+  production_avatar?: string | null
   creator_username?: string
   profile_picture?: string | null
   starts_at?: string
@@ -104,6 +109,7 @@ export type PartycipateView =
   | { type: 'dashboard' }
   | { type: 'productions' }
   | { type: 'production'; id: string }
+  | { type: 'production-public'; id: string }
   | { type: 'messages' }
   | { type: 'profile' }
   | { type: 'auth-required' }

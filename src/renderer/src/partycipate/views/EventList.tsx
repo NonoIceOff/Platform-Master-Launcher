@@ -210,6 +210,7 @@ export default function EventList({
               isRegistered={registeredIds.has(ev.id)}
               isWinner={winnerIds.has(ev.id)}
               onClick={(id) => onNavigate({ type: 'event', id })}
+              onProductionClick={(id) => onNavigate({ type: 'production-public', id })}
             />
           ))}
         </div>

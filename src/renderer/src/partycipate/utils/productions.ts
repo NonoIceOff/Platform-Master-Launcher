@@ -1,7 +1,34 @@
-import { apiGet, apiPost, apiDelete } from '../api'
+import { apiGet, apiPost, apiPatch, apiDelete } from '../api'
 import type { Production } from '../types'
 
 export type EventPermission = 'can_create_events' | 'can_edit_events' | 'can_draw'
+
+export interface ProductionInput {
+  name: string
+  description?: string | null
+  avatar_url?: string | null
+  videos?: string[]
+}
+
+export async function createProduction(input: ProductionInput): Promise<Production> {
+  return apiPost<Production>('/productions', input)
+}
+
+export async function updateProduction(
+  id: string,
+  input: Partial<ProductionInput>
+): Promise<Production> {
+  return apiPatch<Production>(`/productions/${id}`, input)
+}
+
+// Profil public d'une production (accessible sans être membre).
+export async function fetchProductionPublic(id: string): Promise<Production | null> {
+  try {
+    return await apiGet<Production>(`/productions/${id}`, false)
+  } catch {
+    return null
+  }
+}
 
 export interface FollowState {
   following: boolean

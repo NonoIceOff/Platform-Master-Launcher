@@ -1,7 +1,20 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactElement } from 'react'
-import { ArrowLeft, Crown, Trash2, UserPlus, Link2, Copy, Check, RefreshCw } from 'lucide-react'
+import {
+  ArrowLeft,
+  Crown,
+  Trash2,
+  UserPlus,
+  Link2,
+  Copy,
+  Check,
+  RefreshCw,
+  Save,
+  Plus,
+  X
+} from 'lucide-react'
 import { apiDelete, apiGet, apiPatch, apiPost } from '../api'
 import { useToast } from '../components/Toast'
+import { updateProduction } from '../utils/productions'
 import type { Production, ProductionMember, ProductionInvite } from '../types'
 
 type PermKey = 'is_chef' | 'can_create_events' | 'can_edit_events' | 'can_draw' | 'can_invite'
@@ -49,9 +62,24 @@ export default function ProductionMembers({
   const [invites, setInvites] = useState<ProductionInvite[]>([])
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Édition du profil (chef).
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editAvatar, setEditAvatar] = useState('')
+  const [editVideos, setEditVideos] = useState<string[]>([])
+  const [savingInfo, setSavingInfo] = useState(false)
+
   const { showToast, ToastComponent } = useToast()
 
   const activeInvite = invites[0] ?? null
+
+  const fillEditForm = useCallback((p: Production) => {
+    setEditName(p.name ?? '')
+    setEditDescription(p.description ?? '')
+    setEditAvatar(p.avatar_url ?? '')
+    setEditVideos(p.videos && p.videos.length ? p.videos : [])
+  }, [])
 
   const loadInvites = useCallback(async () => {
     try {
@@ -74,6 +102,7 @@ export default function ProductionMembers({
         can_invite: boolean
       }>(`/productions/${productionId}/members`)
       setProduction(data.production)
+      fillEditForm(data.production)
       setMembers(Array.isArray(data.members) ? data.members : [])
       setIsChef(!!data.is_chef)
       setCanInvite(!!data.can_invite)
@@ -86,7 +115,31 @@ export default function ProductionMembers({
     } finally {
       setLoading(false)
     }
-  }, [productionId, showToast, loadInvites])
+  }, [productionId, showToast, loadInvites, fillEditForm])
+
+  async function saveInfo(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!editName.trim()) {
+      showToast('Le nom est requis', 'error')
+      return
+    }
+    setSavingInfo(true)
+    try {
+      const updated = await updateProduction(productionId, {
+        name: editName.trim(),
+        description: editDescription,
+        avatar_url: editAvatar,
+        videos: editVideos.map((v) => v.trim()).filter(Boolean)
+      })
+      setProduction(updated)
+      fillEditForm(updated)
+      showToast('Production mise à jour', 'success')
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setSavingInfo(false)
+    }
+  }
 
   useEffect(() => {
     if (productionId) void load()
@@ -217,6 +270,70 @@ export default function ProductionMembers({
           <h2 className="pc-view-title">{production?.name ?? 'Production'}</h2>
         </div>
       </div>
+
+      {isChef && (
+        <form onSubmit={saveInfo} className="pc-prod-edit">
+          <h3 className="pc-section-title">Informations</h3>
+          <label className="pc-field">
+            <span>Nom</span>
+            <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
+          </label>
+          <label className="pc-field">
+            <span>Photo de profil (URL)</span>
+            <input
+              value={editAvatar}
+              onChange={(e) => setEditAvatar(e.target.value)}
+              placeholder="https://…"
+            />
+          </label>
+          <label className="pc-field">
+            <span>Description</span>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={4}
+              placeholder="Présentez votre production, ce que vous faites…"
+            />
+          </label>
+          <div className="pc-field">
+            <span>Vidéos (URL YouTube, Vimeo ou .mp4)</span>
+            {editVideos.map((v, i) => (
+              <div key={i} className="pc-invite-row">
+                <input
+                  className="pc-invite-input"
+                  value={v}
+                  onChange={(e) =>
+                    setEditVideos((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
+                  }
+                  placeholder="https://youtube.com/watch?v=…"
+                />
+                <button
+                  type="button"
+                  className="pc-btn pc-btn-ghost"
+                  onClick={() => setEditVideos((prev) => prev.filter((_, j) => j !== i))}
+                  title="Retirer cette vidéo"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="pc-btn pc-btn-ghost pc-btn-sm"
+              onClick={() => setEditVideos((prev) => [...prev, ''])}
+            >
+              <Plus size={15} />
+              Ajouter une vidéo
+            </button>
+          </div>
+          <div className="pc-prod-edit-actions">
+            <button type="submit" className="pc-btn pc-btn-primary" disabled={savingInfo}>
+              <Save size={16} />
+              {savingInfo ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {canInvite && (
         <div className="pc-invite-box">

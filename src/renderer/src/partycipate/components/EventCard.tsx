@@ -9,6 +9,7 @@ import {
 interface EventCardProps {
   event: Event
   onClick: (id: number) => void
+  onProductionClick?: (id: string) => void
   isMine?: boolean
   isRegistered?: boolean
   isWinner?: boolean
@@ -17,6 +18,7 @@ interface EventCardProps {
 export default function EventCard({
   event,
   onClick,
+  onProductionClick,
   isMine,
   isRegistered,
   isWinner
@@ -76,9 +78,29 @@ export default function EventCard({
           <span>Par {event.creator_username ?? 'Inconnu'}</span>
         </div>
 
-        {event.production_name && (
-          <span className="pc-event-prod">
-            <Building2 size={12} />
+        {event.production_name && event.production_id && (
+          <span
+            role="link"
+            tabIndex={0}
+            className={`pc-event-prod ${onProductionClick ? 'pc-event-prod-link' : ''}`}
+            onClick={(e) => {
+              if (!onProductionClick) return
+              e.stopPropagation()
+              onProductionClick(event.production_id as string)
+            }}
+            onKeyDown={(e) => {
+              if (onProductionClick && e.key === 'Enter') {
+                e.stopPropagation()
+                onProductionClick(event.production_id as string)
+              }
+            }}
+            title="Voir la production"
+          >
+            {event.production_avatar ? (
+              <img src={event.production_avatar} alt="" className="pc-event-prod-avatar" />
+            ) : (
+              <Building2 size={12} />
+            )}
             {event.production_name}
           </span>
         )}

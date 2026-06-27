@@ -285,9 +285,20 @@ export default function EventDetail({
 
         {event.production_id && (
           <div className="pc-prod-follow">
-            <div className="pc-prod-follow-info">
+            <button
+              type="button"
+              className="pc-prod-follow-info pc-prod-follow-link"
+              onClick={() =>
+                onNavigate({ type: 'production-public', id: event.production_id as string })
+              }
+              title="Voir la production"
+            >
               <span className="pc-prod-follow-icon">
-                <Building2 size={18} />
+                {event.production_avatar ? (
+                  <img src={event.production_avatar} alt="" />
+                ) : (
+                  <Building2 size={18} />
+                )}
               </span>
               <div>
                 <p className="pc-prod-follow-name">{event.production_name ?? 'Production'}</p>
@@ -295,7 +306,7 @@ export default function EventDetail({
                   {followersCount} abonné{followersCount > 1 ? 's' : ''}
                 </p>
               </div>
-            </div>
+            </button>
             <button
               type="button"
               className={`pc-btn pc-btn-sm ${following ? 'pc-btn-ghost' : 'pc-btn-primary'}`}

@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
-import { Building2, Crown, Heart, RefreshCw, Users2 } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactElement
+} from 'react'
+import { Building2, Crown, Heart, Plus, RefreshCw, Users2 } from 'lucide-react'
 import { useToast } from '../components/Toast'
-import { fetchMyProductions, fetchFollowedProductions } from '../utils/productions'
+import {
+  fetchMyProductions,
+  fetchFollowedProductions,
+  createProduction
+} from '../utils/productions'
 import type { PartycipateSession, PartycipateView, Production } from '../types'
 
 interface ProductionsProps {
@@ -28,6 +38,11 @@ export default function Productions({
   const [productions, setProductions] = useState<Production[]>([])
   const [followed, setFollowed] = useState<Production[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newAvatar, setNewAvatar] = useState('')
+  const [creating, setCreating] = useState(false)
   const { showToast, ToastComponent } = useToast()
 
   const load = useCallback(async () => {
@@ -57,6 +72,29 @@ export default function Productions({
     void load()
   }, [session, sessionReady, load, onNavigate])
 
+  async function handleCreate(e: FormEvent): Promise<void> {
+    e.preventDefault()
+    if (!newName.trim()) return
+    setCreating(true)
+    try {
+      const created = await createProduction({
+        name: newName.trim(),
+        description: newDescription,
+        avatar_url: newAvatar
+      })
+      showToast(`Production « ${created.name} » créée`, 'success')
+      setNewName('')
+      setNewDescription('')
+      setNewAvatar('')
+      setShowCreate(false)
+      await load()
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="pc-view">
       <div className="pc-view-header pc-view-header-row">
@@ -70,6 +108,14 @@ export default function Productions({
         <div className="pc-view-actions">
           <button
             type="button"
+            className="pc-btn pc-btn-primary pc-btn-sm"
+            onClick={() => setShowCreate((v) => !v)}
+          >
+            <Plus size={15} />
+            Créer une production
+          </button>
+          <button
+            type="button"
             className="pc-icon-btn"
             onClick={load}
             disabled={loading}
@@ -79,6 +125,53 @@ export default function Productions({
           </button>
         </div>
       </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="pc-prod-edit">
+          <h3 className="pc-section-title">Nouvelle production</h3>
+          <label className="pc-field">
+            <span>Nom</span>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Nom de la production"
+              maxLength={80}
+              autoFocus
+            />
+          </label>
+          <label className="pc-field">
+            <span>Photo de profil (URL)</span>
+            <input
+              value={newAvatar}
+              onChange={(e) => setNewAvatar(e.target.value)}
+              placeholder="https://…"
+            />
+          </label>
+          <label className="pc-field">
+            <span>Description</span>
+            <textarea
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              rows={3}
+              placeholder="Présentez votre production…"
+            />
+          </label>
+          <div className="pc-prod-edit-actions">
+            <button
+              type="button"
+              className="pc-btn pc-btn-ghost"
+              onClick={() => setShowCreate(false)}
+            >
+              Annuler
+            </button>
+            <button type="submit" className="pc-btn pc-btn-primary" disabled={creating}>
+              <Plus size={16} />
+              {creating ? 'Création…' : 'Créer'}
+            </button>
+          </div>
+          <p className="pc-invite-hint">Les vidéos pourront être ajoutées ensuite via « Gérer ».</p>
+        </form>
+      )}
 
       {loading && productions.length === 0 ? (
         <div className="pc-skeleton-list">
@@ -97,23 +190,34 @@ export default function Productions({
         <div className="pc-prod-list">
           {productions.map((p) => (
             <div key={p.id} className="pc-prod-card">
-              <div className="pc-prod-card-icon">
-                <Building2 size={18} />
-              </div>
-              <div className="pc-prod-card-body">
-                <p className="pc-prod-card-name">{p.name}</p>
-                <div className="pc-prod-card-tags">
-                  {permLabels(p).map((label) => (
-                    <span
-                      key={label}
-                      className={`pc-prod-tag ${label === 'Chef' ? 'pc-prod-tag-chef' : ''}`}
-                    >
-                      {label === 'Chef' && <Crown size={11} />}
-                      {label}
-                    </span>
-                  ))}
+              <button
+                type="button"
+                className="pc-prod-card-main"
+                onClick={() => onNavigate({ type: 'production-public', id: p.id })}
+                title="Voir la page de la production"
+              >
+                <div className="pc-prod-card-icon">
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" />
+                  ) : (
+                    <Building2 size={18} />
+                  )}
                 </div>
-              </div>
+                <div className="pc-prod-card-body">
+                  <p className="pc-prod-card-name">{p.name}</p>
+                  <div className="pc-prod-card-tags">
+                    {permLabels(p).map((label) => (
+                      <span
+                        key={label}
+                        className={`pc-prod-tag ${label === 'Chef' ? 'pc-prod-tag-chef' : ''}`}
+                      >
+                        {label === 'Chef' && <Crown size={11} />}
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </button>
               {(p.is_chef || p.can_invite) && (
                 <button
                   type="button"
@@ -121,7 +225,7 @@ export default function Productions({
                   onClick={() => onNavigate({ type: 'production', id: p.id })}
                 >
                   <Users2 size={14} />
-                  {p.is_chef ? "Gérer l'équipe" : 'Inviter'}
+                  {p.is_chef ? 'Gérer' : 'Inviter'}
                 </button>
               )}
             </div>
@@ -138,17 +242,28 @@ export default function Productions({
           <div className="pc-prod-list">
             {followed.map((p) => (
               <div key={p.id} className="pc-prod-card">
-                <div className="pc-prod-card-icon">
-                  <Building2 size={18} />
-                </div>
-                <div className="pc-prod-card-body">
-                  <p className="pc-prod-card-name">{p.name}</p>
-                  <div className="pc-prod-card-tags">
-                    <span className="pc-prod-tag">
-                      {p.followers_count ?? 0} abonné{(p.followers_count ?? 0) > 1 ? 's' : ''}
-                    </span>
+                <button
+                  type="button"
+                  className="pc-prod-card-main"
+                  onClick={() => onNavigate({ type: 'production-public', id: p.id })}
+                  title="Voir la page de la production"
+                >
+                  <div className="pc-prod-card-icon">
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt="" />
+                    ) : (
+                      <Building2 size={18} />
+                    )}
                   </div>
-                </div>
+                  <div className="pc-prod-card-body">
+                    <p className="pc-prod-card-name">{p.name}</p>
+                    <div className="pc-prod-card-tags">
+                      <span className="pc-prod-tag">
+                        {p.followers_count ?? 0} abonné{(p.followers_count ?? 0) > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </button>
               </div>
             ))}
           </div>
