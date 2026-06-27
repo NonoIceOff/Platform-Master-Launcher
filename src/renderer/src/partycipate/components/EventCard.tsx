@@ -59,53 +59,57 @@ export default function EventCard({
           </span>
         </div>
 
-        <div className="pc-event-card-tags">
-          {isMine && <span className="pc-tag pc-tag-mine">Mon événement</span>}
-          {isRegistered && !isMine && (
-            <span className="pc-tag pc-tag-registered">Inscrit</span>
-          )}
-          {isWinner && <span className="pc-tag pc-tag-winner">Gagnant</span>}
-        </div>
-
-        <div className="pc-event-creator">
-          {event.profile_picture ? (
-            <img src={event.profile_picture} alt="" className="pc-avatar-sm" />
-          ) : (
-            <div className="pc-avatar-sm pc-avatar-fallback">
-              {(event.creator_username ?? '?')[0].toUpperCase()}
-            </div>
-          )}
-          <span>Par {event.creator_username ?? 'Inconnu'}</span>
-        </div>
-
-        {event.production_name && event.production_id && (
-          <span
-            role="link"
-            tabIndex={0}
-            className={`pc-event-prod ${onProductionClick ? 'pc-event-prod-link' : ''}`}
-            onClick={(e) => {
-              if (!onProductionClick) return
-              e.stopPropagation()
-              onProductionClick(event.production_id as string)
-            }}
-            onKeyDown={(e) => {
-              if (onProductionClick && e.key === 'Enter') {
-                e.stopPropagation()
-                onProductionClick(event.production_id as string)
-              }
-            }}
-            title="Voir la production"
-          >
-            {event.production_avatar ? (
-              <img src={event.production_avatar} alt="" className="pc-event-prod-avatar" />
-            ) : (
-              <Building2 size={12} />
+        {(isMine || isRegistered || isWinner) && (
+          <div className="pc-event-card-tags">
+            {isMine && <span className="pc-tag pc-tag-mine">Mon événement</span>}
+            {isRegistered && !isMine && (
+              <span className="pc-tag pc-tag-registered">Demande envoyée</span>
             )}
-            {event.production_name}
-          </span>
+            {isWinner && <span className="pc-tag pc-tag-winner">Candidat</span>}
+          </div>
         )}
 
-        <p className="pc-event-desc">{event.description || 'Aucune description'}</p>
+        <div className="pc-event-byline">
+          <div className="pc-event-creator">
+            {event.profile_picture ? (
+              <img src={event.profile_picture} alt="" className="pc-avatar-sm" />
+            ) : (
+              <div className="pc-avatar-sm pc-avatar-fallback">
+                {(event.creator_username ?? '?')[0].toUpperCase()}
+              </div>
+            )}
+            <span>Par {event.creator_username ?? 'Inconnu'}</span>
+          </div>
+
+          {event.production_name && event.production_id && (
+            <span
+              role="link"
+              tabIndex={0}
+              className={`pc-event-prod ${onProductionClick ? 'pc-event-prod-link' : ''}`}
+              onClick={(e) => {
+                if (!onProductionClick) return
+                e.stopPropagation()
+                onProductionClick(event.production_id as string)
+              }}
+              onKeyDown={(e) => {
+                if (onProductionClick && e.key === 'Enter') {
+                  e.stopPropagation()
+                  onProductionClick(event.production_id as string)
+                }
+              }}
+              title="Voir la production"
+            >
+              {event.production_avatar ? (
+                <img src={event.production_avatar} alt="" className="pc-event-prod-avatar" />
+              ) : (
+                <Building2 size={12} />
+              )}
+              {event.production_name}
+            </span>
+          )}
+        </div>
+
+        {event.description && <p className="pc-event-desc">{event.description}</p>}
 
         <div className="pc-event-meta">
           <span>

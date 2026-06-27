@@ -53,6 +53,16 @@ export async function fetchFollowedProductions(): Promise<Production[]> {
   }
 }
 
+// Liste publique de toutes les productions (annuaire).
+export async function fetchAllProductions(): Promise<Production[]> {
+  try {
+    const list = await apiGet<Production[]>('/productions', false)
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
 // État d'abonnement. Si connecté, on connaît `following` ; sinon seulement le total.
 export async function fetchFollowState(
   productionId: string,

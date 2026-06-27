@@ -264,6 +264,10 @@ body {
   background: var(--accent-pc-bg);
   color: var(--accent-pc-text);
 }
+.app-subnav--pc .app-subnav-tab.active.tab-chat {
+  background: var(--accent-discord-bg);
+  color: var(--accent-discord-text);
+}
 .app-subnav-actions {
   display: flex;
   align-items: center;

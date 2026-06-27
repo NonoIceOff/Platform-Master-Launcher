@@ -80,7 +80,7 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
           next.delete(id)
         } else {
           if (next.size >= maxCandidates) {
-            showToast(`Maximum ${maxCandidates} gagnant(s) pour cet événement.`, 'info')
+            showToast(`Maximum ${maxCandidates} candidat(s) pour cet événement.`, 'info')
             return prev
           }
           next.add(id)
@@ -137,7 +137,7 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
     const count = participants.length
     const winnerCount = Math.min(maxCandidates, count)
     const ok = window.confirm(
-      `Lancer le tirage au sort ?\n\n${winnerCount} gagnant(s) seront tirés parmi ${count} candidat(s). Les inscriptions seront fermées.`
+      `Lancer le tirage au sort ?\n\n${winnerCount} candidat(s) seront retenu(s) parmi ${count} demande(s) de participation. Les inscriptions seront fermées.`
     )
     if (!ok) return
 
@@ -147,7 +147,7 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
         `/participations/event/${eventId}/draw`,
         {}
       )
-      showToast(`${data.winners_count ?? 0} gagnant(s) tiré(s) au sort !`, 'success')
+      showToast(`${data.winners_count ?? 0} candidat(s) retenu(s) au tirage !`, 'success')
       await loadAll()
     } catch (err: unknown) {
       showToast((err as Error).message, 'error')
@@ -196,11 +196,11 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
       <div className="pc-participants-card">
         <div className="pc-participants-header pc-candidates-toolbar">
           <h3>
-            <Users size={16} /> {participants.length} candidat(s)
+            <Users size={16} /> {participants.length} demande(s) de participation
           </h3>
           <span className="pc-candidates-count">
             <Trophy size={14} />
-            {selected.size}/{maxCandidates} sélectionné(s)
+            {selected.size}/{maxCandidates} candidat(s)
           </span>
         </div>
 
@@ -211,13 +211,13 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
         )}
         {!event.draw_done && (
           <p className="pc-participants-hint">
-            Cochez jusqu&apos;à {maxCandidates} gagnant(s), puis enregistrez — ou lancez un tirage
+            Cochez jusqu&apos;à {maxCandidates} candidat(s), puis enregistrez — ou lancez un tirage
             aléatoire.
           </p>
         )}
 
         {participants.length === 0 ? (
-          <p className="pc-empty-sub">Aucune inscription pour le moment.</p>
+          <p className="pc-empty-sub">Aucune demande de participation pour le moment.</p>
         ) : (
           <ul className="pc-participants-list">
             {sortedParticipants.map((p) => {
@@ -232,7 +232,7 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
                     className={`pc-candidate-check ${isSel ? 'checked' : ''}`}
                     onClick={() => toggleSelect(p.id)}
                     disabled={event.draw_done}
-                    title={isSel ? 'Retirer de la sélection' : 'Sélectionner comme gagnant'}
+                    title={isSel ? 'Retirer de la sélection' : 'Retenir comme candidat'}
                   >
                     {isSel && <Check size={14} />}
                   </button>
@@ -249,7 +249,7 @@ export default function Candidates({ eventId, session, onBack }: CandidatesProps
                   {isSel && (
                     <span className="pc-badge pc-badge-winner">
                       <Trophy size={12} />
-                      Gagnant
+                      Candidat
                     </span>
                   )}
 

@@ -116,7 +116,7 @@ export default function Gestion({
 
     if (
       !window.confirm(
-        `Lancer le tirage pour « ${ev.name} » ?\n\n${winnerCount} gagnant(s) parmi ${count} inscrit(s). Les inscriptions seront fermées.`
+        `Lancer le tirage pour « ${ev.name} » ?\n\n${winnerCount} candidat(s) retenu(s) parmi ${count} demande(s) de participation. Les inscriptions seront fermées.`
       )
     ) {
       return
@@ -130,7 +130,7 @@ export default function Gestion({
         throw new Error(err.error || 'Échec du tirage')
       }
       const data = await res.json()
-      showToast(`${data.winners_count ?? 0} gagnant(s) tiré(s) !`, 'success')
+      showToast(`${data.winners_count ?? 0} candidat(s) retenu(s) !`, 'success')
       await loadEvents()
     } catch (err: unknown) {
       showToast((err as Error).message, 'error')

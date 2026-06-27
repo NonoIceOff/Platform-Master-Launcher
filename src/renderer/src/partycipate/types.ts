@@ -22,6 +22,7 @@ export interface Production {
   can_invite?: boolean
   followers_count?: number
   members_count?: number
+  members?: ParticipantPreview[]
   is_following?: boolean
 }
 
@@ -110,6 +111,7 @@ export type PartycipateView =
   | { type: 'productions' }
   | { type: 'production'; id: string }
   | { type: 'production-public'; id: string }
+  | { type: 'chat' }
   | { type: 'messages' }
   | { type: 'profile' }
   | { type: 'auth-required' }

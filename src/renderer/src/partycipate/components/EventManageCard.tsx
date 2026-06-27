@@ -60,15 +60,33 @@ export default function EventManageCard({
               {dateLabel}
             </span>
           )}
-          <span>
-            <Users size={13} />
-            {participants} inscrit(s)
+          <span className="pc-event-participants">
+            {event.participants && event.participants.length > 0 ? (
+              <span className="pc-avatar-stack">
+                {event.participants.map((p, i) => (
+                  <span
+                    key={`${p.user_id}-${i}`}
+                    className="pc-avatar-stack-item"
+                    title={p.username ?? undefined}
+                  >
+                    {p.profile_picture ? (
+                      <img src={p.profile_picture} alt="" />
+                    ) : (
+                      (p.username ?? '?')[0].toUpperCase()
+                    )}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <Users size={13} />
+            )}
+            {participants} demande(s) de participation
           </span>
           <span>
             <Trophy size={13} />
             {event.draw_done
-              ? `${event.selected_count ?? 0}/${max} gagnant(s)`
-              : `${max} place(s) à tirer`}
+              ? `${event.selected_count ?? 0}/${max} candidat(s)`
+              : `${max} candidat(s) à retenir`}
           </span>
         </div>
       </button>

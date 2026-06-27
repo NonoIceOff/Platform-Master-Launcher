@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, type ReactElement } from 'react'
 import './App.css'
 import Wiki from './components/Wiki'
 import Partycipate from './partycipate/Partycipate'
-import Discord from './discord/Discord'
 
 const VERSIONS_URL =
   'https://api.github.com/repos/NonoIceOff/Platform-Master/contents/versions.json?ref=new-master'
@@ -18,7 +17,7 @@ interface VersionsData {
   versions: Version[]
 }
 
-type AppSection = 'pm' | 'pc' | 'discord' | 'configuration'
+type AppSection = 'pm' | 'pc' | 'configuration'
 type PmTab = 'Actualités' | 'Platform Master' | 'Wiki'
 
 const PM_TABS: { id: PmTab; label: string }[] = [
@@ -310,13 +309,6 @@ export default function App(): ReactElement {
           >
             Party-cipate
           </button>
-          <button
-            type="button"
-            className={`app-nav-tab app-nav-tab-discord ${activeSection === 'discord' ? 'active' : ''}`}
-            onClick={() => setActiveSection('discord')}
-          >
-            Chat
-          </button>
         </nav>
 
         <div className="titlebar-drag">
@@ -362,7 +354,7 @@ export default function App(): ReactElement {
 
       <div className="main-container">
         <div className="content-wrapper">
-          <main className={`scrollable-content${activeSection === 'pc' || activeSection === 'discord' ? ' scrollable-content-embedded' : ''}`}>
+          <main className={`scrollable-content${activeSection === 'pc' ? ' scrollable-content-embedded' : ''}`}>
 
             {activeSection === 'pm' && pmTab === 'Actualités' && (
               <div className="tab-view animate-fade-in">
@@ -481,13 +473,6 @@ export default function App(): ReactElement {
                 sessionReady={sessionReady}
                 onGoToLogin={() => setActiveSection('configuration')}
                 onReauth={handleReauth}
-              />
-            )}
-
-            {activeSection === 'discord' && (
-              <Discord
-                session={session}
-                onRequireLogin={() => setActiveSection('configuration')}
               />
             )}
 

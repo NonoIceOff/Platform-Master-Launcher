@@ -243,7 +243,7 @@ export default function EventCreate({
         </label>
 
         <label>
-          Nombre de gagnants (tirage au sort)
+          Nombre de candidats à retenir (tirage au sort)
           <input
             name="max_candidates"
             type="number"

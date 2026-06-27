@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo, type ReactElement } from 'react'
-import { Building2, LayoutDashboard, PlusCircle } from 'lucide-react'
+import {
+  Building2,
+  CalendarDays,
+  LayoutDashboard,
+  MessagesSquare,
+  PlusCircle
+} from 'lucide-react'
 import type { PartycipateSession, PartycipateView } from './types'
 import EventList from './views/EventList'
 import EventDetail from './views/EventDetail'
@@ -10,15 +16,17 @@ import Productions from './views/Productions'
 import ProductionMembers from './views/ProductionMembers'
 import ProductionPublic from './views/ProductionPublic'
 import AuthRequired from './views/AuthRequired'
+import Discord from '../discord/Discord'
 import './partycipate.css'
 
 const NAV_ITEMS = [
-  { id: 'home' as const, label: 'Événements', icon: null },
-  { id: 'dashboard' as const, label: 'Mes évènements', icon: LayoutDashboard },
-  { id: 'productions' as const, label: 'Mes productions', icon: Building2 }
+  { id: 'home' as const, label: 'Événements', icon: null, chat: false },
+  { id: 'dashboard' as const, label: 'Mes évènements', icon: LayoutDashboard, chat: false },
+  { id: 'productions' as const, label: 'Mes productions', icon: Building2, chat: false },
+  { id: 'chat' as const, label: 'Chat', icon: MessagesSquare, chat: true }
 ]
 
-type TabId = 'home' | 'dashboard' | 'productions'
+type TabId = 'home' | 'dashboard' | 'productions' | 'chat'
 
 interface PartycipateProps {
   session: PartycipateSession | null
@@ -30,6 +38,7 @@ interface PartycipateProps {
 function tabFromView(view: PartycipateView): TabId {
   if (view.type === 'dashboard') return 'dashboard'
   if (view.type === 'productions') return 'productions'
+  if (view.type === 'chat') return 'chat'
   return 'home'
 }
 
@@ -41,6 +50,8 @@ export default function Partycipate({
 }: PartycipateProps): ReactElement {
   const [view, setView] = useState<PartycipateView>({ type: 'home' })
   const [returnTab, setReturnTab] = useState<TabId>('home')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [prodCreateTrigger, setProdCreateTrigger] = useState(0)
 
   useEffect(() => {
     if (session && view.type === 'auth-required') {
@@ -92,12 +103,30 @@ export default function Partycipate({
   }
 
   function handleNav(id: TabId): void {
-    if (id !== 'home' && sessionReady && !session) {
+    if ((id === 'dashboard' || id === 'productions') && sessionReady && !session) {
       setReturnTab(id)
       setView({ type: 'auth-required' })
       return
     }
     goToTab(id)
+  }
+
+  function handleCreateEvent(): void {
+    setCreateOpen(false)
+    requireAuth({ type: 'create' })
+  }
+
+  function handleCreateProduction(): void {
+    setCreateOpen(false)
+    if (!sessionReady) return
+    if (!session) {
+      setReturnTab('productions')
+      setView({ type: 'auth-required' })
+      return
+    }
+    goToTab('productions')
+    // Signale à la vue Productions d'ouvrir directement le formulaire de création.
+    setProdCreateTrigger((t) => t + 1)
   }
 
   return (
@@ -110,7 +139,7 @@ export default function Partycipate({
               <button
                 key={item.id}
                 type="button"
-                className={`app-subnav-tab ${activeNav === item.id ? 'active' : ''}`}
+                className={`app-subnav-tab ${item.chat ? 'tab-chat' : ''} ${activeNav === item.id ? 'active' : ''}`}
                 onClick={() => handleNav(item.id)}
               >
                 {Icon && <Icon size={16} />}
@@ -121,17 +150,49 @@ export default function Partycipate({
         </nav>
 
         <div className="app-subnav-actions">
-          <button
-            type="button"
-            className="pc-btn pc-btn-primary pc-btn-sm"
-            onClick={() => requireAuth({ type: 'create' })}
-          >
-            <PlusCircle size={16} />
-            Créer
-          </button>
+          <div className="pc-create-menu">
+            <button
+              type="button"
+              className="pc-btn pc-btn-primary pc-btn-sm"
+              onClick={() => setCreateOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={createOpen}
+            >
+              <PlusCircle size={16} />
+              Créer
+            </button>
+            {createOpen && (
+              <>
+                <div className="pc-create-menu-backdrop" onClick={() => setCreateOpen(false)} />
+                <div className="pc-create-menu-pop" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pc-create-menu-item"
+                    onClick={handleCreateEvent}
+                  >
+                    <CalendarDays size={15} />
+                    Créer un évènement
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pc-create-menu-item"
+                    onClick={handleCreateProduction}
+                  >
+                    <Building2 size={15} />
+                    Créer une production
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
+      {view.type === 'chat' ? (
+        <Discord session={session} onRequireLogin={onGoToLogin} />
+      ) : (
       <div className="pc-content">
         {view.type === 'home' && (
           <EventList
@@ -185,6 +246,7 @@ export default function Partycipate({
             session={session}
             sessionReady={sessionReady}
             onNavigate={(next) => navigateFromTab('productions', next)}
+            openCreateSignal={prodCreateTrigger}
           />
         )}
         {view.type === 'production' && (
@@ -207,6 +269,7 @@ export default function Partycipate({
           />
         )}
       </div>
+      )}
     </div>
   )
 }

@@ -5,11 +5,12 @@ import {
   type FormEvent,
   type ReactElement
 } from 'react'
-import { Building2, Crown, Heart, Plus, RefreshCw, Users2 } from 'lucide-react'
+import { Building2, Crown, Heart, Plus, RefreshCw, Users, Users2 } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import {
   fetchMyProductions,
   fetchFollowedProductions,
+  fetchAllProductions,
   createProduction
 } from '../utils/productions'
 import type { PartycipateSession, PartycipateView, Production } from '../types'
@@ -18,6 +19,7 @@ interface ProductionsProps {
   session: PartycipateSession | null
   sessionReady: boolean
   onNavigate: (view: PartycipateView) => void
+  openCreateSignal?: number
 }
 
 function permLabels(p: Production): string[] {
@@ -30,13 +32,48 @@ function permLabels(p: Production): string[] {
   return labels.length ? labels : ['Membre']
 }
 
+function memberCount(p: Production): number {
+  return p.members_count ?? p.members?.length ?? 0
+}
+
+function MemberPreview({ production }: { production: Production }): ReactElement | null {
+  const count = memberCount(production)
+  if (count === 0) return null
+  return (
+    <span className="pc-event-participants pc-prod-card-members">
+      {production.members && production.members.length > 0 ? (
+        <span className="pc-avatar-stack">
+          {production.members.map((m, i) => (
+            <span
+              key={`${m.user_id}-${i}`}
+              className="pc-avatar-stack-item"
+              title={m.username ?? undefined}
+            >
+              {m.profile_picture ? (
+                <img src={m.profile_picture} alt="" />
+              ) : (
+                (m.username ?? '?')[0].toUpperCase()
+              )}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <Users size={13} />
+      )}
+      {count} membre{count > 1 ? 's' : ''}
+    </span>
+  )
+}
+
 export default function Productions({
   session,
   sessionReady,
-  onNavigate
+  onNavigate,
+  openCreateSignal
 }: ProductionsProps): ReactElement {
   const [productions, setProductions] = useState<Production[]>([])
   const [followed, setFollowed] = useState<Production[]>([])
+  const [allProductions, setAllProductions] = useState<Production[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
@@ -48,16 +85,19 @@ export default function Productions({
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [mine, follows] = await Promise.all([
+      const [mine, follows, all] = await Promise.all([
         fetchMyProductions(),
-        fetchFollowedProductions()
+        fetchFollowedProductions(),
+        fetchAllProductions()
       ])
       setProductions(mine)
       setFollowed(follows)
+      setAllProductions(all)
     } catch (err: unknown) {
       showToast((err as Error).message || 'Impossible de charger vos productions', 'error')
       setProductions([])
       setFollowed([])
+      setAllProductions([])
     } finally {
       setLoading(false)
     }
@@ -71,6 +111,11 @@ export default function Productions({
     }
     void load()
   }, [session, sessionReady, load, onNavigate])
+
+  // Ouvre directement le formulaire quand on arrive via le menu « + » du header.
+  useEffect(() => {
+    if (openCreateSignal && openCreateSignal > 0) setShowCreate(true)
+  }, [openCreateSignal])
 
   async function handleCreate(e: FormEvent): Promise<void> {
     e.preventDefault()
@@ -94,6 +139,12 @@ export default function Productions({
       setCreating(false)
     }
   }
+
+  const followedOnly = followed.filter((f) => !productions.some((p) => p.id === f.id))
+  // Toutes les productions, hors celles dont on est déjà membre ou abonné.
+  const othersOnly = allProductions.filter(
+    (a) => !productions.some((p) => p.id === a.id) && !followed.some((f) => f.id === a.id)
+  )
 
   return (
     <div className="pc-view">
@@ -216,6 +267,7 @@ export default function Productions({
                       </span>
                     ))}
                   </div>
+                  <MemberPreview production={p} />
                 </div>
               </button>
               {(p.is_chef || p.can_invite) && (
@@ -233,14 +285,14 @@ export default function Productions({
         </div>
       )}
 
-      {followed.length > 0 && (
+      {followedOnly.length > 0 && (
         <div className="pc-followed-section">
           <h3 className="pc-section-title">
             <Heart size={16} />
             Productions suivies
           </h3>
           <div className="pc-prod-list">
-            {followed.map((p) => (
+            {followedOnly.map((p) => (
               <div key={p.id} className="pc-prod-card">
                 <button
                   type="button"
@@ -262,6 +314,39 @@ export default function Productions({
                         {p.followers_count ?? 0} abonné{(p.followers_count ?? 0) > 1 ? 's' : ''}
                       </span>
                     </div>
+                  </div>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {othersOnly.length > 0 && (
+        <div className="pc-followed-section">
+          <h3 className="pc-section-title">
+            <Building2 size={16} />
+            Toutes les productions
+          </h3>
+          <div className="pc-prod-list">
+            {othersOnly.map((p) => (
+              <div key={p.id} className="pc-prod-card">
+                <button
+                  type="button"
+                  className="pc-prod-card-main"
+                  onClick={() => onNavigate({ type: 'production-public', id: p.id })}
+                  title="Voir la page de la production"
+                >
+                  <div className="pc-prod-card-icon">
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt="" />
+                    ) : (
+                      <Building2 size={18} />
+                    )}
+                  </div>
+                  <div className="pc-prod-card-body">
+                    <p className="pc-prod-card-name">{p.name}</p>
+                    {p.description && <p className="pc-prod-card-desc">{p.description}</p>}
                   </div>
                 </button>
               </div>

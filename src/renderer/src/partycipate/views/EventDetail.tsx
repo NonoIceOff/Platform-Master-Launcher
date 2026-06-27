@@ -190,7 +190,7 @@ export default function EventDetail({
     const max = event.max_candidates ?? 1
     const winnerCount = Math.min(max, count)
     const ok = window.confirm(
-      `Lancer le tirage au sort ?\n\n${winnerCount} gagnant(s) seront tirés parmi ${count} participant(s). Les inscriptions seront fermées.`
+      `Lancer le tirage au sort ?\n\n${winnerCount} candidat(s) seront retenu(s) parmi ${count} demande(s) de participation. Les inscriptions seront fermées.`
     )
     if (!ok) return
 
@@ -200,7 +200,7 @@ export default function EventDetail({
         `/participations/event/${eventId}/draw`,
         {}
       )
-      showToast(`${data.winners_count ?? 0} gagnant(s) tiré(s) au sort !`, 'success')
+      showToast(`${data.winners_count ?? 0} candidat(s) retenu(s) au tirage !`, 'success')
       await loadAll()
     } catch (err: unknown) {
       showToast((err as Error).message, 'error')
@@ -326,13 +326,13 @@ export default function EventDetail({
           </span>
           <span>
             <Users size={16} />
-            {event.participants_count ?? participants.length} inscrit(s)
+            {event.participants_count ?? participants.length} demande(s) de participation
           </span>
           <span>
             <Trophy size={16} />
             {event.draw_done
-              ? `${event.selected_count ?? winners.length}/${maxCandidates} gagnant(s)`
-              : `${maxCandidates} place(s) à tirer`}
+              ? `${event.selected_count ?? winners.length}/${maxCandidates} candidat(s)`
+              : `${maxCandidates} candidat(s) à retenir`}
           </span>
           <span>
             <Heart size={16} />
@@ -402,17 +402,17 @@ export default function EventDetail({
         <div className="pc-participants-card">
           <div className="pc-participants-header">
             <h3>
-              {event.draw_done ? 'Résultats du tirage' : 'Participants'} ({participants.length})
+              {event.draw_done ? 'Candidats retenus' : 'Demandes de participations'} ({participants.length})
             </h3>
             {canEdit && !event.draw_done && (
               <p className="pc-participants-hint">
-                Gérez les inscriptions et lancez le tirage quand vous êtes prêt.
+                Gérez les demandes de participation et lancez le tirage quand vous êtes prêt.
               </p>
             )}
           </div>
 
           {participants.length === 0 ? (
-            <p className="pc-empty-sub">Aucune inscription pour le moment.</p>
+            <p className="pc-empty-sub">Aucune demande de participation pour le moment.</p>
           ) : (
             <ul className="pc-participants-list">
               {participants.map((p) => (
@@ -431,7 +431,7 @@ export default function EventDetail({
                   {p.is_selected && (
                     <span className="pc-badge pc-badge-winner">
                       <Trophy size={12} />
-                      Gagnant
+                      Candidat
                     </span>
                   )}
                 </li>
@@ -441,7 +441,7 @@ export default function EventDetail({
 
           {event.draw_done && winners.length > 0 && (
             <p className="pc-participants-hint">
-              {winners.length} gagnant(s) tiré(s) sur {maxCandidates} place(s) prévue(s).
+              {winners.length} candidat(s) retenu(s) sur {maxCandidates} prévu(s).
             </p>
           )}
 
