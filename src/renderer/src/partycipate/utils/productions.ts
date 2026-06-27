@@ -1,7 +1,12 @@
-import { apiGet } from '../api'
+import { apiGet, apiPost, apiDelete } from '../api'
 import type { Production } from '../types'
 
 export type EventPermission = 'can_create_events' | 'can_edit_events' | 'can_draw'
+
+export interface FollowState {
+  following: boolean
+  followers_count: number
+}
 
 export async function fetchMyProductions(): Promise<Production[]> {
   try {
@@ -10,6 +15,47 @@ export async function fetchMyProductions(): Promise<Production[]> {
   } catch {
     return []
   }
+}
+
+export async function fetchFollowedProductions(): Promise<Production[]> {
+  try {
+    const list = await apiGet<Production[]>('/productions/following')
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+// État d'abonnement. Si connecté, on connaît `following` ; sinon seulement le total.
+export async function fetchFollowState(
+  productionId: string,
+  loggedIn: boolean
+): Promise<FollowState> {
+  if (loggedIn) {
+    try {
+      return await apiGet<FollowState>(`/productions/${productionId}/follow`)
+    } catch {
+      // repli sur les infos publiques
+    }
+  }
+  try {
+    const pub = await apiGet<{ followers_count?: number }>(`/productions/${productionId}`, false)
+    return { following: false, followers_count: pub.followers_count ?? 0 }
+  } catch {
+    return { following: false, followers_count: 0 }
+  }
+}
+
+export async function followProduction(productionId: string): Promise<FollowState> {
+  return apiPost<FollowState>(`/productions/${productionId}/follow`, {})
+}
+
+export async function unfollowProduction(
+  productionId: string,
+  loggedIn: boolean
+): Promise<FollowState> {
+  await apiDelete(`/productions/${productionId}/follow`)
+  return fetchFollowState(productionId, loggedIn)
 }
 
 // Vrai si l'utilisateur est créateur de l'événement OU a la permission demandée

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import {
   ArrowLeft,
+  Building2,
   Calendar,
   Edit,
   Heart,
@@ -19,7 +20,13 @@ import {
   getEventStatusBadgeClass,
   getEventStatusLabel
 } from '../utils/eventStatus'
-import { canManageEvent, fetchMyProductions } from '../utils/productions'
+import {
+  canManageEvent,
+  fetchMyProductions,
+  fetchFollowState,
+  followProduction,
+  unfollowProduction
+} from '../utils/productions'
 
 interface EventDetailProps {
   eventId: number
@@ -44,6 +51,9 @@ export default function EventDetail({
   const [canDraw, setCanDraw] = useState(false)
   const [loading, setLoading] = useState(true)
   const [drawing, setDrawing] = useState(false)
+  const [following, setFollowing] = useState(false)
+  const [followersCount, setFollowersCount] = useState(0)
+  const [followBusy, setFollowBusy] = useState(false)
   const { showToast, ToastComponent } = useToast()
 
   useEffect(() => {
@@ -60,6 +70,19 @@ export default function EventDetail({
       const myProductions = await fetchMyProductions()
       setCanEdit(canManageEvent(myProductions, event, session.user.id, 'can_edit_events'))
       setCanDraw(canManageEvent(myProductions, event, session.user.id, 'can_draw'))
+    })()
+  }, [event, session])
+
+  useEffect(() => {
+    if (!event?.production_id) {
+      setFollowing(false)
+      setFollowersCount(0)
+      return
+    }
+    void (async () => {
+      const fs = await fetchFollowState(event.production_id as string, !!session)
+      setFollowing(fs.following)
+      setFollowersCount(fs.followers_count)
     })()
   }, [event, session])
 
@@ -185,6 +208,27 @@ export default function EventDetail({
     }
   }
 
+  async function toggleFollow(): Promise<void> {
+    if (!event?.production_id) return
+    if (!session) return onGoToLogin()
+    setFollowBusy(true)
+    try {
+      const fs = following
+        ? await unfollowProduction(event.production_id, true)
+        : await followProduction(event.production_id)
+      setFollowing(fs.following)
+      setFollowersCount(fs.followers_count)
+      showToast(
+        fs.following ? 'Abonné à la production' : 'Désabonné de la production',
+        'success'
+      )
+    } catch (err: unknown) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setFollowBusy(false)
+    }
+  }
+
   if (loading) return <div className="pc-view pc-loading">Chargement…</div>
   if (!event) return <div className="pc-view pc-loading">Événement introuvable.</div>
 
@@ -237,6 +281,31 @@ export default function EventDetail({
             {getEventStatusLabel(event)}
           </span>
         </div>
+
+        {event.production_id && (
+          <div className="pc-prod-follow">
+            <div className="pc-prod-follow-info">
+              <span className="pc-prod-follow-icon">
+                <Building2 size={18} />
+              </span>
+              <div>
+                <p className="pc-prod-follow-name">{event.production_name ?? 'Production'}</p>
+                <p className="pc-prod-follow-count">
+                  {followersCount} abonné{followersCount > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`pc-btn pc-btn-sm ${following ? 'pc-btn-ghost' : 'pc-btn-primary'}`}
+              onClick={toggleFollow}
+              disabled={followBusy}
+            >
+              <Heart size={15} fill={following ? 'currentColor' : 'none'} />
+              {following ? 'Abonné' : 'Suivre'}
+            </button>
+          </div>
+        )}
 
         <div className="pc-detail-stats">
           <span>

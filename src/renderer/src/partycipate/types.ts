@@ -17,6 +17,8 @@ export interface Production {
   can_edit_events?: boolean
   can_draw?: boolean
   can_invite?: boolean
+  followers_count?: number
+  is_following?: boolean
 }
 
 export interface ProductionMember {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
-import { Building2, Crown, RefreshCw, Users2 } from 'lucide-react'
-import { apiGet } from '../api'
+import { Building2, Crown, Heart, RefreshCw, Users2 } from 'lucide-react'
 import { useToast } from '../components/Toast'
+import { fetchMyProductions, fetchFollowedProductions } from '../utils/productions'
 import type { PartycipateSession, PartycipateView, Production } from '../types'
 
 interface ProductionsProps {
@@ -26,17 +26,23 @@ export default function Productions({
   onNavigate
 }: ProductionsProps): ReactElement {
   const [productions, setProductions] = useState<Production[]>([])
+  const [followed, setFollowed] = useState<Production[]>([])
   const [loading, setLoading] = useState(true)
   const { showToast, ToastComponent } = useToast()
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await apiGet<Production[]>('/productions/mine')
-      setProductions(Array.isArray(list) ? list : [])
+      const [mine, follows] = await Promise.all([
+        fetchMyProductions(),
+        fetchFollowedProductions()
+      ])
+      setProductions(mine)
+      setFollowed(follows)
     } catch (err: unknown) {
       showToast((err as Error).message || 'Impossible de charger vos productions', 'error')
       setProductions([])
+      setFollowed([])
     } finally {
       setLoading(false)
     }
@@ -120,6 +126,32 @@ export default function Productions({
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {followed.length > 0 && (
+        <div className="pc-followed-section">
+          <h3 className="pc-section-title">
+            <Heart size={16} />
+            Productions suivies
+          </h3>
+          <div className="pc-prod-list">
+            {followed.map((p) => (
+              <div key={p.id} className="pc-prod-card">
+                <div className="pc-prod-card-icon">
+                  <Building2 size={18} />
+                </div>
+                <div className="pc-prod-card-body">
+                  <p className="pc-prod-card-name">{p.name}</p>
+                  <div className="pc-prod-card-tags">
+                    <span className="pc-prod-tag">
+                      {p.followers_count ?? 0} abonné{(p.followers_count ?? 0) > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {ToastComponent}
