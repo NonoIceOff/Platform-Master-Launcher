@@ -238,7 +238,12 @@ export default function Productions({
           </p>
         </div>
       ) : (
-        <div className="pc-prod-list">
+        <div className="pc-followed-section">
+          <h3 className="pc-section-title">
+            <Users size={16} />
+            Mes productions
+          </h3>
+          <div className="pc-prod-list">
           {productions.map((p) => (
             <div key={p.id} className="pc-prod-card">
               <button
@@ -282,6 +287,7 @@ export default function Productions({
               )}
             </div>
           ))}
+          </div>
         </div>
       )}
 
