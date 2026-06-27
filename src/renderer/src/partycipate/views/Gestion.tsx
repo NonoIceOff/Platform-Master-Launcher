@@ -164,7 +164,7 @@ export default function Gestion({
       <div className="pc-view-header pc-view-header-row">
         <div>
           <p className="pc-view-kicker">Organisateur</p>
-          <h2 className="pc-view-title">Gestion</h2>
+          <h2 className="pc-view-title">Mes évènements</h2>
           <p className="pc-gestion-sub">
             Créez, modifiez, gérez les inscriptions et lancez vos tirages au sort.
           </p>

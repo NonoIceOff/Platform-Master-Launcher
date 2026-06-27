@@ -12,7 +12,7 @@ import './partycipate.css'
 
 const NAV_ITEMS = [
   { id: 'home' as const, label: 'Événements', icon: null },
-  { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard },
+  { id: 'dashboard' as const, label: 'Mes évènements', icon: LayoutDashboard },
   { id: 'productions' as const, label: 'Mes productions', icon: Building2 }
 ]
 
