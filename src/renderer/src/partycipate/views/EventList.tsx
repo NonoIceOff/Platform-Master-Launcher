@@ -103,6 +103,9 @@ export default function EventList({
       list = list.filter((e) => String(e.user_id) === session.user.id)
     } else if (filter === 'registered' && session) {
       list = list.filter((e) => registeredIds.has(e.id))
+    } else if (filter === 'all') {
+      // Feed "Tous" : on masque les événements aux inscriptions fermées.
+      list = list.filter((e) => getEventStatus(e) !== 'closed')
     }
 
     if (searchQuery) {
