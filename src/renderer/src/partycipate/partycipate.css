@@ -1732,3 +1732,77 @@
     padding-bottom: 8px;
   }
 }
+
+/* ── Likes : survol "qui a aimé" + bouton liké ── */
+.pc-like-hover {
+  position: relative;
+  cursor: default;
+}
+.pc-like-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 180px;
+  max-width: 260px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-focus);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+  z-index: 50;
+}
+.pc-like-hover:hover .pc-like-tooltip,
+.pc-like-hover:focus-within .pc-like-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+.pc-like-tooltip-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+.pc-like-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+.pc-like-tooltip-row img,
+.pc-like-tooltip-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.pc-like-tooltip-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-pc-bg);
+  color: var(--accent-pc-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+.pc-like-tooltip-more {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.pc-btn-liked {
+  background: rgba(236, 72, 153, 0.16);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.35);
+}

@@ -37,6 +37,12 @@ interface EventDetailProps {
   onGoToLogin: () => void
 }
 
+interface Liker {
+  user_id: string
+  username: string | null
+  profile_picture: string | null
+}
+
 export default function EventDetail({
   eventId,
   session,
@@ -47,6 +53,8 @@ export default function EventDetail({
   const [event, setEvent] = useState<Event | null>(null)
   const [participants, setParticipants] = useState<Participation[]>([])
   const [votesCount, setVotesCount] = useState(0)
+  const [likers, setLikers] = useState<Liker[]>([])
+  const [hasLiked, setHasLiked] = useState(false)
   const [isParticipated, setIsParticipated] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [canDraw, setCanDraw] = useState(false)
@@ -95,10 +103,18 @@ export default function EventDetail({
       setEvent(eventData)
 
       try {
-        const votesJson = await apiGet<Array<{ count: string }>>(`/votes/event/${eventId}`, false)
-        setVotesCount(Number(votesJson?.[0]?.count) || 0)
+        const likersJson = await apiGet<Liker[]>(`/votes/event/${eventId}/users`, false)
+        const list = Array.isArray(likersJson) ? likersJson : []
+        setLikers(list)
+        setVotesCount(list.length)
+        setHasLiked(
+          !!session?.user.id &&
+            list.some((l) => String(l.user_id) === String(session.user.id))
+        )
       } catch {
+        setLikers([])
         setVotesCount(0)
+        setHasLiked(false)
       }
 
       if (session) {
@@ -132,7 +148,11 @@ export default function EventDetail({
   async function vote(): Promise<void> {
     if (!session) return onGoToLogin()
     try {
-      await apiPost('/votes/', { event_id: eventId, value: 1 })
+      if (hasLiked) {
+        await apiDelete(`/votes/event/${eventId}`)
+      } else {
+        await apiPost('/votes/', { event_id: eventId, value: 1 })
+      }
       await loadAll()
     } catch (err: unknown) {
       showToast((err as Error).message, 'error')
@@ -334,9 +354,29 @@ export default function EventDetail({
               ? `${event.selected_count ?? winners.length}/${maxCandidates} candidat(s)`
               : `${maxCandidates} candidat(s) à retenir`}
           </span>
-          <span>
+          <span className="pc-like-hover" tabIndex={likers.length ? 0 : -1}>
             <Heart size={16} />
             {votesCount}
+            {likers.length > 0 && (
+              <span className="pc-like-tooltip" role="tooltip">
+                <span className="pc-like-tooltip-title">{votesCount} J&apos;aime</span>
+                {likers.slice(0, 30).map((l) => (
+                  <span key={l.user_id} className="pc-like-tooltip-row">
+                    {l.profile_picture ? (
+                      <img src={l.profile_picture} alt="" />
+                    ) : (
+                      <span className="pc-like-tooltip-avatar">
+                        {(l.username ?? '?')[0].toUpperCase()}
+                      </span>
+                    )}
+                    {l.username ?? 'Utilisateur'}
+                  </span>
+                ))}
+                {likers.length > 30 && (
+                  <span className="pc-like-tooltip-more">+{likers.length - 30} autre(s)</span>
+                )}
+              </span>
+            )}
           </span>
         </div>
 
@@ -385,9 +425,13 @@ export default function EventDetail({
                 {isParticipated ? <UserMinus size={16} /> : <Users size={16} />}
                 {isParticipated ? "Annuler l'inscription" : "S'inscrire"}
               </button>
-              <button type="button" className="pc-btn pc-btn-ghost" onClick={vote}>
-                <Heart size={16} />
-                J&apos;aime
+              <button
+                type="button"
+                className={`pc-btn ${hasLiked ? 'pc-btn-liked' : 'pc-btn-ghost'}`}
+                onClick={vote}
+              >
+                <Heart size={16} fill={hasLiked ? 'currentColor' : 'none'} />
+                {hasLiked ? "Je n'aime plus" : "J'aime"}
               </button>
             </>
           ) : (
