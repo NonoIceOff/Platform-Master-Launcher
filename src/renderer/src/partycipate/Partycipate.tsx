@@ -17,6 +17,7 @@ import ProductionMembers from './views/ProductionMembers'
 import ProductionPublic from './views/ProductionPublic'
 import AuthRequired from './views/AuthRequired'
 import Discord from '../discord/Discord'
+import NotificationBell from './components/NotificationBell'
 import './partycipate.css'
 
 const NAV_ITEMS = [
@@ -150,6 +151,10 @@ export default function Partycipate({
         </nav>
 
         <div className="app-subnav-actions">
+          <NotificationBell
+            enabled={!!session}
+            onOpenEvent={(eventId) => navigateFromTab(activeNav, { type: 'event', id: eventId })}
+          />
           <div className="pc-create-menu">
             <button
               type="button"
