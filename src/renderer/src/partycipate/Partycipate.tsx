@@ -13,7 +13,7 @@ import './partycipate.css'
 const NAV_ITEMS = [
   { id: 'home' as const, label: 'Événements', icon: null },
   { id: 'dashboard' as const, label: 'Gestion', icon: LayoutDashboard },
-  { id: 'productions' as const, label: 'Ma production', icon: Building2 }
+  { id: 'productions' as const, label: 'Mes productions', icon: Building2 }
 ]
 
 type TabId = 'home' | 'dashboard' | 'productions'

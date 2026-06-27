@@ -61,7 +61,7 @@ export default function Productions({
     <div className="pc-view">
       <div className="pc-view-header pc-view-header-row">
         <div>
-          <p className="pc-view-kicker">Ma production</p>
+          <p className="pc-view-kicker">Mes productions</p>
           <h2 className="pc-view-title">Mes productions</h2>
           <p className="pc-gestion-sub">
             Vos productions et vos rôles. Gérez l&apos;équipe, les permissions et les invitations.
