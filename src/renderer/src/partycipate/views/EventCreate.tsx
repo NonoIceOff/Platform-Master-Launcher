@@ -25,6 +25,7 @@ export default function EventCreate({
     description: '',
     long_description: '',
     image_url: '',
+    duration: '',
     starts_at: '',
     is_open: true,
     max_candidates: 1,
@@ -73,6 +74,7 @@ export default function EventCreate({
           description: data.description ?? '',
           long_description: data.long_description ?? '',
           image_url: data.image_url ?? '',
+          duration: data.duration ?? '',
           starts_at: data.starts_at ? data.starts_at.slice(0, 16) : '',
           is_open: !!data.is_open,
           max_candidates: data.max_candidates ?? 1,
@@ -257,6 +259,16 @@ export default function EventCreate({
                 max_candidates: Math.max(1, Number(e.target.value) || 1)
               }))
             }
+          />
+        </label>
+
+        <label>
+          Temps de tournage
+          <input
+            name="duration"
+            value={form.duration}
+            onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
+            placeholder="Ex: 45 minutes"
           />
         </label>
 

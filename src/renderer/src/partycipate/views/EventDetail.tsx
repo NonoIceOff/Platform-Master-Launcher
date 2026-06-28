@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  Clock,
   Edit,
   Heart,
   Lock,
@@ -344,6 +345,12 @@ export default function EventDetail({
             <Calendar size={16} />
             {dateFormatted.date} {dateFormatted.time}
           </span>
+          {event.duration && (
+            <span>
+              <Clock size={16} />
+              {event.duration}
+            </span>
+          )}
           <span>
             <Users size={16} />
             {event.participants_count ?? participants.length} demande(s) de participation

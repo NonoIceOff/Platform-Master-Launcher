@@ -52,6 +52,7 @@ export interface Event {
   description?: string
   long_description?: string
   image_url?: string | null
+  duration?: string | null
   is_open: boolean
   user_id: string
   production_id?: string | null
