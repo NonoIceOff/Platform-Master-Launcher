@@ -18,6 +18,12 @@ import ProductionPublic from './views/ProductionPublic'
 import AuthRequired from './views/AuthRequired'
 import Discord from '../discord/Discord'
 import NotificationBell from './components/NotificationBell'
+import {
+  fetchChatUnread,
+  fetchMentions,
+  type ChatUnreadResponse,
+  type MentionsResponse
+} from './utils/notifications'
 import './partycipate.css'
 
 const NAV_ITEMS = [
@@ -53,12 +59,50 @@ export default function Partycipate({
   const [returnTab, setReturnTab] = useState<TabId>('home')
   const [createOpen, setCreateOpen] = useState(false)
   const [prodCreateTrigger, setProdCreateTrigger] = useState(0)
+  const [chatUnread, setChatUnread] = useState<ChatUnreadResponse>({ total: 0, channels: [] })
+  const [mentions, setMentions] = useState<MentionsResponse>({ mentions: [], unread: 0 })
+  const [pendingChannel, setPendingChannel] = useState<string | null>(null)
 
   useEffect(() => {
     if (session && view.type === 'auth-required') {
       setView({ type: 'home' })
     }
   }, [session, view.type])
+
+  // Badges de messages non lus (onglet Chat + cloche). Rafraîchi par polling et
+  // immédiatement quand un channel est marqué lu (événement custom).
+  useEffect(() => {
+    if (!session) {
+      setChatUnread({ total: 0, channels: [] })
+      setMentions({ mentions: [], unread: 0 })
+      return
+    }
+    let cancelled = false
+    const refresh = (): void => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      void fetchChatUnread().then((data) => {
+        if (!cancelled) setChatUnread(data)
+      })
+      void fetchMentions().then((data) => {
+        if (!cancelled) setMentions(data)
+      })
+    }
+    refresh()
+    const id = setInterval(refresh, 15_000)
+    window.addEventListener('partycipate-chat-read', refresh)
+    window.addEventListener('partycipate-mentions-read', refresh)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+      window.removeEventListener('partycipate-chat-read', refresh)
+      window.removeEventListener('partycipate-mentions-read', refresh)
+    }
+  }, [session])
+
+  function openChannelFromNotif(channelId: string): void {
+    setPendingChannel(channelId)
+    goToTab('chat')
+  }
 
   const activeNav = useMemo((): TabId => {
     if (
@@ -109,6 +153,8 @@ export default function Partycipate({
       setView({ type: 'auth-required' })
       return
     }
+    // Ouverture normale de l'onglet Chat : on ne force aucun channel précis.
+    if (id === 'chat') setPendingChannel(null)
     goToTab(id)
   }
 
@@ -145,6 +191,11 @@ export default function Partycipate({
               >
                 {Icon && <Icon size={16} />}
                 {item.label}
+                {item.chat && chatUnread.total > 0 && (
+                  <span className="app-subnav-tab-badge">
+                    {chatUnread.total > 9 ? '9+' : chatUnread.total}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -154,6 +205,11 @@ export default function Partycipate({
           <NotificationBell
             enabled={!!session}
             onOpenEvent={(eventId) => navigateFromTab(activeNav, { type: 'event', id: eventId })}
+            onOpenChannel={openChannelFromNotif}
+            chatTotal={chatUnread.total}
+            chatChannels={chatUnread.channels}
+            mentions={mentions.mentions}
+            mentionUnread={mentions.unread}
           />
           <div className="pc-create-menu">
             <button
@@ -196,7 +252,7 @@ export default function Partycipate({
       </header>
 
       {view.type === 'chat' ? (
-        <Discord session={session} onRequireLogin={onGoToLogin} />
+        <Discord session={session} onRequireLogin={onGoToLogin} initialChannel={pendingChannel} />
       ) : (
       <div className="pc-content">
         {view.type === 'home' && (

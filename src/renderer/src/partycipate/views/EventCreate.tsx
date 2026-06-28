@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
-import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react'
+import { ArrowLeft, PlusCircle, Trash2, Megaphone } from 'lucide-react'
 import { apiDelete, apiFetch, apiGet } from '../api'
 import { useToast } from '../components/Toast'
 import type { PartycipateSession, PartycipateView, Production } from '../types'
@@ -123,6 +123,31 @@ export default function EventCreate({
           : msg,
         'error'
       )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAnnounce(): Promise<void> {
+    if (!eventId || !session) return
+    if (
+      !window.confirm(
+        "Envoyer l'annonce des inscriptions sur Discord maintenant ? Le bot postera l'embed dans les serveurs connectés à la production."
+      )
+    ) {
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await apiFetch(`/events/${eventId}/announce`, { method: 'POST', body: '{}' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast(err.message || err.error || 'Erreur', 'error')
+        return
+      }
+      showToast('Annonce programmée : le bot la postera dans quelques secondes.', 'success')
+    } catch (err: unknown) {
+      showToast((err as Error).message || 'Erreur inattendue', 'error')
     } finally {
       setLoading(false)
     }
@@ -299,6 +324,18 @@ export default function EventCreate({
           <PlusCircle size={18} />
           {loading ? 'En cours…' : isEdit ? 'Enregistrer' : "Créer l'événement"}
         </button>
+
+        {isEdit && (
+          <button
+            type="button"
+            className="pc-btn pc-btn-discord pc-btn-full"
+            disabled={loading}
+            onClick={handleAnnounce}
+          >
+            <Megaphone size={16} />
+            Notifier les inscriptions sur Discord
+          </button>
+        )}
 
         {isEdit && (
           <button
