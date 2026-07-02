@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
+    "@nonoiceoff/party-cipate-core": "file:../party-cipate-core",
     "@electron-toolkit/utils": "^4.0.0",
     "dotenv": "^17.4.2",
     "electron-log": "^5.4.4",
