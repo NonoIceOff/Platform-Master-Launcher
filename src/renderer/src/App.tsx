@@ -59,13 +59,18 @@ export default function App(): ReactElement {
   const [authLoading, setAuthLoading] = useState(false)
   const [discordLoading, setDiscordLoading] = useState(false)
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false)
+  const [accountBannedNotice, setAccountBannedNotice] = useState(false)
   const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
     loadVersions()
     window.launcher.getInstalledVersion().then(setInstalled)
-    void window.launcher.validateSession().then(({ session: s, expired }) => {
-      if (expired) {
+    void window.launcher.validateSession().then(({ session: s, expired, banned }) => {
+      if (banned) {
+        setSession(null)
+        setAccountBannedNotice(true)
+        setActiveSection('configuration')
+      } else if (expired) {
         setSession(null)
         setSessionExpiredNotice(true)
         setActiveSection('configuration')
@@ -86,11 +91,18 @@ export default function App(): ReactElement {
       setSessionExpiredNotice(true)
       setActiveSection('configuration')
     }
+    const onAccountBanned = (): void => {
+      setSession(null)
+      setAccountBannedNotice(true)
+      setActiveSection('configuration')
+    }
     window.addEventListener('mnet-session-expired', onSessionExpired)
+    window.addEventListener('mnet-account-banned', onAccountBanned)
 
     return () => {
       unsub()
       window.removeEventListener('mnet-session-expired', onSessionExpired)
+      window.removeEventListener('mnet-account-banned', onAccountBanned)
     }
   }, [])
 
@@ -693,6 +705,21 @@ export default function App(): ReactElement {
           )}
         </div>
       </div>
+
+      {accountBannedNotice && (
+        <div className="auth-banned-overlay" role="dialog" aria-modal="true">
+          <div className="auth-banned-modal">
+            <h2>Compte banni</h2>
+            <p>
+              Votre compte a été banni de Party-cipate. Vous ne pouvez plus vous inscrire aux
+              événements ni utiliser les fonctionnalités connectées.
+            </p>
+            <button type="button" className="action-btn btn-install" onClick={() => setAccountBannedNotice(false)}>
+              Compris
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

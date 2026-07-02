@@ -5,6 +5,12 @@ async function request<T>(
   const { method = 'GET', body, auth = true } = options
   const result = await window.launcher.apiRequest({ method, path, body, auth })
 
+  if (result.status === 403 && auth && (result.data as { banned?: boolean })?.banned) {
+    window.dispatchEvent(new CustomEvent('mnet-account-banned'))
+    const err = (result.data as { error?: string }) || {}
+    throw new Error(err.error || 'Votre compte a été banni de Party-cipate.')
+  }
+
   if (result.status === 401 && auth) {
     window.dispatchEvent(new CustomEvent('mnet-session-expired'))
     const err = (result.data as { error?: string }) || {}

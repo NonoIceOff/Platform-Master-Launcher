@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('launcher', {
     ipcRenderer.invoke('auth-validate-session') as Promise<{
       session: { user: { id: string; email: string; username: string } } | null
       expired: boolean
+      banned: boolean
     }>,
 
   login: (email: string, password: string) =>

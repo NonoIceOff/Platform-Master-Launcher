@@ -293,19 +293,20 @@ function writeAuthSession(session: AuthSession | null): void {
 async function validateAuthSession(): Promise<{
   session: PublicSession | null
   expired: boolean
+  banned: boolean
 }> {
   const session = readAuthSession()
-  if (!session) return { session: null, expired: false }
+  if (!session) return { session: null, expired: false, banned: false }
 
   const tokenExp = getTokenExpiryMs(session.token)
   if (tokenExp && Date.now() >= tokenExp) {
     writeAuthSession(null)
-    return { session: null, expired: true }
+    return { session: null, expired: true, banned: false }
   }
 
   const lastVerifiedAt = readAuthSessionLastVerified()
   if (lastVerifiedAt && Date.now() - lastVerifiedAt < SESSION_REVERIFY_MS) {
-    return { session: toPublicSession(session), expired: false }
+    return { session: toPublicSession(session), expired: false, banned: false }
   }
 
   try {
@@ -318,21 +319,29 @@ async function validateAuthSession(): Promise<{
       }
     })
 
+    const data = await parseApiResponse(res)
+
     if (res.status === 401) {
       writeAuthSession(null)
-      return { session: null, expired: true }
+      syncAuthToGame(null)
+      return { session: null, expired: true, banned: false }
+    }
+
+    if (res.status === 403 && data.banned) {
+      writeAuthSession(null)
+      syncAuthToGame(null)
+      return { session: null, expired: false, banned: true }
     }
 
     if (!res.ok) {
       // Rate limit / erreur serveur : garder la session si le JWT est encore valide
       if (!tokenExp || Date.now() < tokenExp) {
-        return { session: toPublicSession(session), expired: false }
+        return { session: toPublicSession(session), expired: false, banned: false }
       }
       writeAuthSession(null)
-      return { session: null, expired: true }
+      return { session: null, expired: true, banned: false }
     }
 
-    const data = await parseApiResponse(res)
     const user = data.user as ApiUser | undefined
     const refreshed: AuthSession = user
       ? {
@@ -342,16 +351,16 @@ async function validateAuthSession(): Promise<{
       : session
 
     writeAuthSession(refreshed)
-    return { session: toPublicSession(refreshed), expired: false }
+    return { session: toPublicSession(refreshed), expired: false, banned: false }
   } catch {
     if (tokenExp && Date.now() < tokenExp) {
-      return { session: toPublicSession(session), expired: false }
+      return { session: toPublicSession(session), expired: false, banned: false }
     }
     if (lastVerifiedAt && Date.now() - lastVerifiedAt < MAX_OFFLINE_MS) {
-      return { session: toPublicSession(session), expired: false }
+      return { session: toPublicSession(session), expired: false, banned: false }
     }
     writeAuthSession(null)
-    return { session: null, expired: true }
+    return { session: null, expired: true, banned: false }
   }
 }
 
@@ -677,6 +686,11 @@ ipcMain.handle(
     }
 
     if (res.status === 401 && auth) {
+      writeAuthSession(null)
+      syncAuthToGame(null)
+    }
+
+    if (res.status === 403 && auth && data && typeof data === 'object' && (data as { banned?: boolean }).banned) {
       writeAuthSession(null)
       syncAuthToGame(null)
     }
