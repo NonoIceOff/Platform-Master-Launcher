@@ -4,7 +4,9 @@ import {
   CalendarDays,
   LayoutDashboard,
   MessagesSquare,
-  PlusCircle
+  PlusCircle,
+  Trophy,
+  Vote
 } from 'lucide-react'
 import type { PartycipateSession, PartycipateView } from './types'
 import EventList from './views/EventList'
@@ -16,6 +18,9 @@ import Productions from './views/Productions'
 import ProductionMembers from './views/ProductionMembers'
 import ProductionPublic from './views/ProductionPublic'
 import AuthRequired from './views/AuthRequired'
+import PollsList from './views/PollsList'
+import PollCreate from './views/PollCreate'
+import Classement from './views/Classement'
 import Discord from '../discord/Discord'
 import NotificationBell from './components/NotificationBell'
 import {
@@ -28,12 +33,14 @@ import './partycipate.css'
 
 const NAV_ITEMS = [
   { id: 'home' as const, label: 'Événements', icon: null, chat: false },
+  { id: 'polls' as const, label: 'Sondages', icon: Vote, chat: false },
   { id: 'dashboard' as const, label: 'Mes évènements', icon: LayoutDashboard, chat: false },
   { id: 'productions' as const, label: 'Mes productions', icon: Building2, chat: false },
+  { id: 'classement' as const, label: 'Classement', icon: Trophy, chat: false },
   { id: 'chat' as const, label: 'Chat', icon: MessagesSquare, chat: true }
 ]
 
-type TabId = 'home' | 'dashboard' | 'productions' | 'chat'
+type TabId = 'home' | 'polls' | 'dashboard' | 'productions' | 'classement' | 'chat'
 
 interface PartycipateProps {
   session: PartycipateSession | null
@@ -43,8 +50,10 @@ interface PartycipateProps {
 }
 
 function tabFromView(view: PartycipateView): TabId {
+  if (view.type === 'polls') return 'polls'
   if (view.type === 'dashboard') return 'dashboard'
   if (view.type === 'productions') return 'productions'
+  if (view.type === 'classement') return 'classement'
   if (view.type === 'chat') return 'chat'
   return 'home'
 }
@@ -110,7 +119,8 @@ export default function Partycipate({
       view.type === 'candidates' ||
       view.type === 'create' ||
       view.type === 'modify' ||
-      view.type === 'production-public'
+      view.type === 'production-public' ||
+      view.type === 'polls-create'
     ) {
       return returnTab
     }
@@ -125,7 +135,13 @@ export default function Partycipate({
   }
 
   function navigateFromTab(tab: TabId, next: PartycipateView): void {
-    if (next.type === 'home' || next.type === 'dashboard' || next.type === 'productions') {
+    if (
+      next.type === 'home' ||
+      next.type === 'dashboard' ||
+      next.type === 'productions' ||
+      next.type === 'polls' ||
+      next.type === 'classement'
+    ) {
       goToTab(next.type)
       return
     }
@@ -161,6 +177,11 @@ export default function Partycipate({
   function handleCreateEvent(): void {
     setCreateOpen(false)
     requireAuth({ type: 'create' })
+  }
+
+  function handleCreatePoll(): void {
+    setCreateOpen(false)
+    requireAuth({ type: 'polls-create' })
   }
 
   function handleCreateProduction(): void {
@@ -234,6 +255,15 @@ export default function Partycipate({
                   >
                     <CalendarDays size={15} />
                     Créer un évènement
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pc-create-menu-item"
+                    onClick={handleCreatePoll}
+                  >
+                    <Vote size={15} />
+                    Créer un sondage
                   </button>
                   <button
                     type="button"
@@ -313,6 +343,16 @@ export default function Partycipate({
         {view.type === 'production' && (
           <ProductionMembers productionId={view.id} onBack={() => setView({ type: 'productions' })} />
         )}
+        {view.type === 'polls' && <PollsList onNavigate={(next) => navigateFromTab('polls', next)} session={session} />}
+        {view.type === 'polls-create' && (
+          <PollCreate
+            session={session}
+            sessionReady={sessionReady}
+            onNavigate={(next) => navigateFromTab(returnTab, next)}
+            onBack={goBack}
+          />
+        )}
+        {view.type === 'classement' && <Classement />}
         {view.type === 'production-public' && (
           <ProductionPublic
             productionId={view.id}

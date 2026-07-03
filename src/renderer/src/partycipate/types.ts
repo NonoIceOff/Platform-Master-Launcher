@@ -116,7 +116,42 @@ export type PartycipateView =
   | { type: 'messages' }
   | { type: 'profile' }
   | { type: 'auth-required' }
+  | { type: 'polls' }
+  | { type: 'polls-create' }
+  | { type: 'classement' }
 
 export interface PartycipateSession {
   user: { id: string; email: string; username: string }
+}
+
+// ─── Sondages (Polls) ───
+
+export interface PollOption {
+  id: number
+  label: string
+  position?: number
+  votes_count: number
+}
+
+export interface Poll {
+  id: number
+  question: string
+  category?: string | null
+  user_id: string
+  creator_username?: string | null
+  username?: string | null
+  profile_picture?: string | null
+  created_at: string
+  ends_at?: string | null
+  is_closed: boolean
+  options: PollOption[]
+  total_votes: number
+  my_vote_option_id?: number | null
+}
+
+export interface LeaderboardEntry {
+  user_id: string
+  username: string
+  profile_picture: string | null
+  total: number
 }
