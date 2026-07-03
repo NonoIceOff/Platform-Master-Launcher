@@ -129,8 +129,22 @@ export default function PollCard({ poll, session, onVoted, onDeleted }: PollCard
       </div>
 
       <div className="pc-event-meta">
-        <span>
-          <Users size={12} />
+        <span className="pc-event-participants">
+          {poll.voters && poll.voters.length > 0 ? (
+            <span className="pc-avatar-stack">
+              {poll.voters.map((v, i) => (
+                <span key={`${v.user_id}-${i}`} className="pc-avatar-stack-item" title={v.username ?? undefined}>
+                  {v.profile_picture ? (
+                    <img src={v.profile_picture} alt="" />
+                  ) : (
+                    (v.username ?? '?')[0].toUpperCase()
+                  )}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <Users size={12} />
+          )}
           {poll.total_votes}
         </span>
         <span>

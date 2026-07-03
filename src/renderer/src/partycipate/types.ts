@@ -147,6 +147,7 @@ export interface Poll {
   options: PollOption[]
   total_votes: number
   my_vote_option_id?: number | null
+  voters?: ParticipantPreview[]
 }
 
 export interface LeaderboardEntry {
