@@ -3,6 +3,7 @@ export type WikiCategoryId =
   | 'blocs'
   | 'objets'
   | 'outils'
+  | 'enchantement'
   | 'mobs'
   | 'biomes'
   | 'dimensions'
