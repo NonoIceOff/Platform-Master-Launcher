@@ -5,8 +5,8 @@ contextBridge.exposeInMainWorld('launcher', {
 
   fetchVersions: (url: string) => ipcRenderer.invoke('fetch-versions', url),
 
-  downloadVersion: (version: string, url: string | string[]) =>
-    ipcRenderer.invoke('download-version', { version, url }),
+  downloadVersion: (version: string, url: string | string[], exe?: string) =>
+    ipcRenderer.invoke('download-version', { version, url, exe }),
 
   launchGame: () => ipcRenderer.invoke('launch-game'),
 

@@ -1,10 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell, safeStorage, type IpcMainInvokeEvent } from 'electron'
-import { join, basename, resolve } from 'path'
+import { join, basename, resolve, dirname } from 'path'
 import fs from 'node:fs'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { ReadableStream } from 'node:stream/web'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import 'dotenv/config'
 import { autoUpdater } from 'electron-updater'
@@ -806,20 +806,84 @@ async function downloadFileToDisk(
 }
 
 /* ────────────────────────────────
+   🗜 ARCHIVES (version Rust : jeu + dossier assets/ dans un .zip)
+──────────────────────────────── */
+function extractZip(zipPath: string, destDir: string): void {
+  // Windows 10+ fournit tar.exe (bsdtar, lit les .zip) ; PowerShell en secours
+  const attempts: [string, string[]][] =
+    process.platform === 'win32'
+      ? [
+          ['tar', ['-xf', zipPath, '-C', destDir]],
+          [
+            'powershell.exe',
+            [
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`
+            ]
+          ]
+        ]
+      : [
+          ['unzip', ['-o', '-q', zipPath, '-d', destDir]],
+          ['tar', ['-xf', zipPath, '-C', destDir]]
+        ]
+  let lastError = ''
+  for (const [cmd, args] of attempts) {
+    const r = spawnSync(cmd, args, { windowsHide: true, encoding: 'utf8' })
+    if (!r.error && r.status === 0) return
+    lastError = r.error ? r.error.message : (r.stderr || '').trim() || `code ${r.status}`
+    log.warn(`[extract] ${cmd} a échoué : ${lastError}`)
+  }
+  throw new Error(`Impossible de décompresser l'archive (${lastError})`)
+}
+
+/** Cherche l'exécutable du jeu dans le dossier (nom donné par versions.json, sinon le premier .exe) */
+function findGameExe(dir: string, wanted?: string): string {
+  if (wanted) {
+    const direct = resolve(dir, wanted)
+    if (direct.startsWith(resolve(dir)) && fs.existsSync(direct)) return direct
+  }
+  const stack = [dir]
+  while (stack.length) {
+    const d = stack.pop() as string
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name)
+      if (e.isDirectory()) {
+        if (e.name !== 'assets') stack.push(p)
+      } else if (
+        e.name.toLowerCase().endsWith('.exe') &&
+        e.name.toLowerCase() !== 'pm_server.exe' &&
+        (!wanted || e.name.toLowerCase() === wanted.toLowerCase())
+      ) {
+        return p
+      }
+    }
+  }
+  return ''
+}
+
+/* ────────────────────────────────
    📥 DOWNLOAD VERSION
 ──────────────────────────────── */
 ipcMain.handle(
   'download-version',
-  async (event, { version, url }: { version: string; url: string | string[] }) => {
+  async (
+    event,
+    { version, url, exe }: { version: string; url: string | string[]; exe?: string }
+  ) => {
     const safeVersion = String(version).replace(/\./g, '_')
     const versionDir = join(INSTALL_DIR, safeVersion)
 
-    if (!fs.existsSync(versionDir)) {
-      fs.mkdirSync(versionDir, { recursive: true })
+    // installation propre : on repart d'un dossier vide (anciens fichiers d'une version précédente)
+    if (fs.existsSync(versionDir)) {
+      fs.rmSync(versionDir, { recursive: true, force: true })
     }
+    fs.mkdirSync(versionDir, { recursive: true })
 
     const urlList = Array.isArray(url) ? url : [url]
     let exePath = ''
+    const archives: string[] = []
 
     for (let i = 0; i < urlList.length; i++) {
       const fileUrl = urlList[i]
@@ -832,6 +896,8 @@ ipcMain.handle(
 
       if (filename.toLowerCase().endsWith('.exe')) {
         exePath = dest
+      } else if (filename.toLowerCase().endsWith('.zip')) {
+        archives.push(dest)
       }
 
       await downloadFileToDisk(downloadUrl, dest, (received, total) => {
@@ -847,6 +913,16 @@ ipcMain.handle(
           })
         }
       })
+    }
+
+    // version Rust : archive .zip (PlatformMaster.exe + assets/) à décompresser sur place
+    for (const zip of archives) {
+      extractZip(zip, versionDir)
+      fs.rmSync(zip, { force: true })
+    }
+    if (archives.length > 0 || exe) {
+      exePath = findGameExe(versionDir, exe) || exePath
+      if (!exePath) throw new Error("Exécutable du jeu introuvable dans l'archive")
     }
 
     if (!exePath && urlList.length > 0) {
@@ -891,6 +967,8 @@ ipcMain.handle('launch-game', async () => {
 
   const child = spawn(exe, [], {
     env,
+    // la version Rust cherche son dossier assets/ à côté de l'exécutable / du dossier courant
+    cwd: dirname(exe),
     detached: true,
     stdio: 'ignore'
   })

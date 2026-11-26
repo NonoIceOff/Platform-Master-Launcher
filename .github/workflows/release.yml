@@ -1,0 +1,31 @@
+# Construit l'installeur Windows et publie la release GitHub (latest.yml compris) à chaque
+# push sur la branche « release ». Les launchers déjà installés se mettent à jour tout seuls
+# (electron-updater lit latest.yml de la dernière release).
+name: Release launcher
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dépendances
+        run: npm ci
+
+      - name: Build + publication GitHub
+        run: npm run build:win -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

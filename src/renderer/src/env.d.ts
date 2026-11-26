@@ -25,7 +25,8 @@ declare global {
       fetchVersions: (url: string) => Promise<unknown>
       downloadVersion: (
         version: string,
-        url: string | string[]
+        url: string | string[],
+        exe?: string
       ) => Promise<{ version: string; exe: string }>
       launchGame: () => Promise<{ ok?: boolean; error?: string }>
       getPlaytime: () => Promise<number>
@@ -34,7 +35,7 @@ declare global {
       getAppVersion: () => Promise<string>
 
       getSession: () => Promise<PublicSession | null>
-      validateSession: () => Promise<{ session: PublicSession | null; expired: boolean }>
+      validateSession: () => Promise<{ session: PublicSession | null; expired: boolean; banned?: boolean }>
       login: (email: string, password: string) => Promise<PublicSession>
       register: (email: string, username: string, password: string) => Promise<PublicSession>
       loginWithDiscord: () => Promise<PublicSession>

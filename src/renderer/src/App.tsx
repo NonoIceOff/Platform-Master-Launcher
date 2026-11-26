@@ -11,6 +11,10 @@ interface Version {
   label?: string
   url: string | string[] // 🚀 Accepte une chaîne ou une liste de chaînes
   changelog: string[]
+  /** « rust » pour la version Rust (archive .zip), absent pour les anciennes builds Godot */
+  engine?: 'rust' | 'godot'
+  /** exécutable à lancer dans l'archive (ex. PlatformMaster.exe) */
+  exe?: string
 }
 
 interface VersionsData {
@@ -153,7 +157,7 @@ export default function App(): ReactElement {
 
     try {
       // Lance l'événement IPC vers le main process (index.ts)
-      await window.launcher.downloadVersion(selected.version, selected.url)
+      await window.launcher.downloadVersion(selected.version, selected.url, selected.exe)
       // Une fois fini, on met à jour la version installée localement
       const currentInstalled = await window.launcher.getInstalledVersion()
       setInstalled(currentInstalled)
@@ -398,6 +402,7 @@ export default function App(): ReactElement {
                               </span>
                               <h3 className="news-card-title">Version {v.version}</h3>
                               {v.label && <span className="news-card-label">{v.label}</span>}
+                              <span className="news-card-label">{v.engine === 'rust' ? '🦀 Rust' : 'Godot (ancienne)'}</span>
                               {installed === v.version && <span className="downloaded-tag">Téléchargé ✓</span>}
                             </div>
                             <div className={`news-arrow ${isExpanded ? 'rotated' : ''}`}>⚡</div>
