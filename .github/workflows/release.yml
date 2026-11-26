@@ -25,6 +25,15 @@ jobs:
       - name: Dépendances
         run: npm ci
 
+      - name: Tag de version (vX.Y.Z d'après package.json)
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if ! git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null; then
+            git tag "v$v"
+            git push origin "v$v"
+          fi
+
       - name: Build + publication GitHub
         run: npm run build:win -- --publish always
         env:
